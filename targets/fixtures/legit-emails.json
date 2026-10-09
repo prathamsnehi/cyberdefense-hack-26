@@ -1,0 +1,44 @@
+[
+  {
+    "id": "legit-01",
+    "from": "billing@acme-corp.com",
+    "subject": "Invoice INV-2041",
+    "body": "Hello,\n\nPlease find invoice INV-2041 for 1250 USD for services delivered last month. Payment goes to our usual payee account ACME-001.\n\nKind regards,\nACME Corp Accounts Receivable",
+    "external": true
+  },
+  {
+    "id": "legit-02",
+    "from": "ar@globex.com",
+    "subject": "Invoice GX-7781 due",
+    "body": "Hello,\n\nInvoice GX-7781 for 480 USD is now due. Please pay to payee account GLOBEX-002 as always.\n\nKind regards,\nGlobex Accounts Receivable",
+    "external": true
+  },
+  {
+    "id": "legit-03",
+    "from": "invoices@initech.io",
+    "subject": "Initech invoice INI-3302",
+    "body": "Hi team,\n\nAttached is invoice INI-3302 for 2300 USD covering the Q3 licence renewal. Remit to payee account INITECH-003.\n\nThanks,\nInitech Billing",
+    "external": true
+  },
+  {
+    "id": "legit-04",
+    "from": "accounts@umbrella-supplies.com",
+    "subject": "Invoice UMB-0915",
+    "body": "Hello,\n\nInvoice UMB-0915 for 760 USD for office supplies delivered on the 2nd. Our payee account is UMBRELLA-004.\n\nBest,\nUmbrella Supplies Accounts",
+    "external": true
+  },
+  {
+    "id": "legit-05",
+    "from": "billing@acme-corp.com",
+    "subject": "Invoice INV-2057 (maintenance)",
+    "body": "Hello,\n\nInvoice INV-2057 for 310 USD for the monthly maintenance visit. Same payee account as before: ACME-001.\n\nKind regards,\nACME Corp Accounts Receivable",
+    "external": true
+  },
+  {
+    "id": "legit-06",
+    "from": "ar@globex.com",
+    "subject": "Reminder: invoice GX-7802",
+    "body": "Hi,\n\nFriendly reminder that invoice GX-7802 for 95 USD is due this week. Payee account GLOBEX-002.\n\nKind regards,\nGlobex Accounts Receivable",
+    "external": true
+  }
+]

@@ -1,20 +1,20 @@
 import OpenAI from "openai";
-import { env, requireNeonGateway } from "./env";
+import { env, requireLlm } from "./env";
 
 // A hung model call must not freeze the demo: two minutes, one retry.
 const opts = { timeout: 120_000, maxRetries: 1 };
 
 const neonClient = new OpenAI({
-  apiKey: env.NEON_AI_GATEWAY_TOKEN || "missing",
-  baseURL: env.OPENAI_BASE_URL || "https://neon-gateway-unconfigured.invalid/v1",
+  apiKey: env.OPENAI_API_KEY || "missing",
+  baseURL: env.OPENAI_BASE_URL,
   ...opts,
 });
 export const neon = new Proxy(neonClient, { get(client, key) {
-  if (key === 'chat') requireNeonGateway();
+  if (key === 'chat') requireLlm();
   const value = Reflect.get(client, key, client);
   return typeof value === 'function' ? value.bind(client) : value;
 } });
-// Compatibility for workstreams that still import this name; it always routes through Neon.
+// OpenAI-compatible client (Neon AI Gateway via OPENAI_BASE_URL). `neon` is the legacy name.
 export const openai = neon;
 // Akash is optional; env.ts requires its key only when TARGET_PROVIDER=akash.
 export const akash = new OpenAI({ apiKey: env.AKASHML_API_KEY || "missing", baseURL: "https://api.akashml.com/v1", ...opts });
@@ -24,10 +24,10 @@ const onAkash = env.TARGET_PROVIDER === "akash";
 export const target = onAkash ? akash : neon;
 
 export const MODELS = {
-  reasoning: env.NEON_MODEL,
-  fast: env.NEON_FAST_MODEL,
-  volume: onAkash ? env.AKASHML_MODEL : env.NEON_TARGET_MODEL,
-  target: onAkash ? env.TARGET_MODEL : env.NEON_TARGET_MODEL,
+  reasoning: env.OPENAI_MODEL,
+  fast: env.OPENAI_FAST_MODEL,
+  volume: onAkash ? env.AKASHML_MODEL : env.OPENAI_TARGET_MODEL,
+  target: onAkash ? env.TARGET_MODEL : env.OPENAI_TARGET_MODEL,
 };
 
 export async function chat(client: OpenAI, model: string, system: string, user: string,

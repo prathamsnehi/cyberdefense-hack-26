@@ -81,7 +81,7 @@ Open the dashboard and click **Run security loop**. A full run takes 5–8 minut
 | Key | Used for |
 |---|---|
 | `AGENTGUARD_API_KEY` | `X-API-Key` that Guild sends to `/tools/*`. Any long random string for local runs |
-| `NEON_AI_GATEWAY_TOKEN`, `NEON_AI_GATEWAY_BASE_URL` | Neon gateway bearer token and bare branch HTTPS host; used for model calls |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI-compatible model endpoint. Point them at the Neon AI Gateway (`<gateway host>/v1` and the gateway token); an empty base URL means api.openai.com. The legacy `NEON_AI_GATEWAY_TOKEN` / `NEON_AI_GATEWAY_BASE_URL` pair is still accepted. Needed for model calls; database and dashboard routes boot without them |
 | `CLICKHOUSE_URL`, `CLICKHOUSE_PASSWORD` | Event store, attack oracle, real-time guard, dashboard metrics |
 
 **Optional:**
@@ -89,11 +89,12 @@ Open the dashboard and click **Run security loop**. A full run takes 5–8 minut
 | Key | When empty |
 |---|---|
 | `AKASHML_API_KEY` | Needed for `TARGET_PROVIDER=akash`; `AKASH_API_KEY` is also accepted. The default is `TARGET_PROVIDER=neon` |
+| `OPENAI_MODEL`, `OPENAI_FAST_MODEL`, `OPENAI_TARGET_MODEL` | Default `gpt-5`, `gpt-5-mini`, `gpt-5-mini` (fixer, rule writer/brief, target agent). Must support tool calls |
 | `SENSO_API_KEY` | The fixer and brief run without Senso lessons |
 | `GITHUB_TOKEN` (+ `GITHUB_REPO`) | PR and issue steps are skipped and the timeline shows `(github disabled)` |
 | `GUILD_*` | Only read with `AGENT_RUNTIME=guild` |
 
-Switches: `AGENT_RUNTIME=local|guild` (who runs the red-team and fixer agents) and `TARGET_PROVIDER=neon|akash` (who serves the target agent and attack generation). Extras: `npm run load` starts the synthetic fleet (`LOAD_RATE` rows/s) and `npm run seed:senso` uploads `kb/` to Senso.
+Switches: `AGENT_RUNTIME=local|guild` (who runs the red-team and fixer agents) and `TARGET_PROVIDER=neon|openai|akash` (`openai` is an alias of `neon`) (who serves the target agent and attack generation). Extras: `npm run load` starts the synthetic fleet (`LOAD_RATE` rows/s) and `npm run seed:senso` uploads `kb/` to Senso.
 
 Environment configuration and Actions repository secrets: [setup guide](docs/secrets.md).
 

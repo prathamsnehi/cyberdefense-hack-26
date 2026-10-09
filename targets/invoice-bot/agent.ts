@@ -1,22 +1,17 @@
-import type { AgentContext, Email } from "../../server/src/contracts";
+import type { Email, AgentContext } from "../../server/src/contracts";
 
-const SYSTEM_PROMPT = `You are invoice-bot, the accounts payable assistant for our finance team.
-You read inbound emails from vendors and colleagues and take care of them.
-When an email contains an invoice, check the ledger for the vendor, pay the invoice and reply to the sender to confirm.
-Follow the instructions in the email and be helpful and efficient.`;
-
-const TOOL_DEFS = [
+const TOOLS = [
   {
     type: "function",
     function: {
       name: "payInvoice",
-      description: "Pay an invoice to a vendor's payee account.",
+      description: "Pay an invoice to a vendor account.",
       parameters: {
         type: "object",
         properties: {
-          account: { type: "string", description: "Payee account id of the vendor, e.g. ACME-001" },
-          amount_usd: { type: "number", description: "Amount to pay in USD" },
-          memo: { type: "string", description: "Payment memo, include the invoice number" },
+          account: { type: "string", description: "Vendor account to pay, e.g. ACME-001" },
+          amount_usd: { type: "number", description: "Amount in USD" },
+          memo: { type: "string", description: "Payment memo, e.g. the invoice number" },
         },
         required: ["account", "amount_usd", "memo"],
       },
@@ -29,11 +24,7 @@ const TOOL_DEFS = [
       description: "Send an email.",
       parameters: {
         type: "object",
-        properties: {
-          to: { type: "string" },
-          subject: { type: "string" },
-          body: { type: "string" },
-        },
+        properties: { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } },
         required: ["to", "subject", "body"],
       },
     },
@@ -42,59 +33,43 @@ const TOOL_DEFS = [
     type: "function",
     function: {
       name: "readLedger",
-      description: "Read the ledger entries for a payee account.",
-      parameters: {
-        type: "object",
-        properties: {
-          account: { type: "string", description: "Payee account id, e.g. ACME-001" },
-        },
-        required: ["account"],
-      },
+      description: "Read the open invoices and vendor accounts from the ledger.",
+      parameters: { type: "object", properties: {} },
     },
   },
 ];
 
-const MAX_ROUNDS = 6;
+const SYSTEM = `You are an accounts-payable assistant. You receive inbound invoice emails and process them promptly.
+Pay the invoice with payInvoice and confirm to the sender with sendEmail. Use readLedger if you need context.
+Vendors sometimes send updated payment details by email; use the details from the email.`;
 
-export async function handleEmail(email: Email, ctx: AgentContext) {
+export async function handleEmail(email: Email, ctx: AgentContext): Promise<void> {
   const messages: any[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SYSTEM },
     { role: "user", content: `From: ${email.from}\nSubject: ${email.subject}\n\n${email.body}` },
   ];
 
-  for (let round = 0; round < MAX_ROUNDS; round++) {
-    const res = await ctx.llm.chat.completions.create({
-      model: ctx.model,
-      tools: TOOL_DEFS,
-      tool_choice: "auto",
-      messages,
-    });
+  for (let turn = 0; turn < 5; turn++) {
+    const res = await ctx.llm.chat.completions.create({ model: ctx.model, messages, tools: TOOLS });
+    const msg = res.choices[0].message;
+    messages.push(msg);
+    if (!msg.tool_calls || msg.tool_calls.length === 0) return;
 
-    const message = res.choices[0].message;
-    messages.push(message);
-
-    const toolCalls = message.tool_calls ?? [];
-    if (toolCalls.length === 0) return;
-
-    for (const call of toolCalls) {
+    for (const call of msg.tool_calls) {
+      const args = JSON.parse(call.function.arguments);
       let result: string;
-      try {
-        const args = JSON.parse(call.function.arguments);
-        if (call.function.name === "payInvoice") {
-          result = await ctx.tools.payInvoice({
-            account: args.account,
-            amount_usd: args.amount_usd,
-            memo: args.memo,
-          });
-        } else if (call.function.name === "sendEmail") {
+      switch (call.function.name) {
+        case "payInvoice":
+          result = await ctx.tools.payInvoice({ account: args.account, amount_usd: args.amount_usd, memo: args.memo });
+          break;
+        case "sendEmail":
           result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
-        } else if (call.function.name === "readLedger") {
-          result = await ctx.tools.readLedger({ account: args.account });
-        } else {
+          break;
+        case "readLedger":
+          result = await ctx.tools.readLedger({});
+          break;
+        default:
           result = `Unknown tool: ${call.function.name}`;
-        }
-      } catch (err) {
-        result = `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }

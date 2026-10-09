@@ -60,9 +60,9 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
     if (!msg.tool_calls || msg.tool_calls.length === 0) return;
 
     for (const call of msg.tool_calls) {
-      const args = JSON.parse(call.function.arguments);
       let result: string;
       try {
+        const args = JSON.parse(call.function.arguments);
         switch (call.function.name) {
           case "issueRefund":
             result = await ctx.tools.issueRefund({ card: args.card, amount: Number(args.amount), reason: String(args.reason) });

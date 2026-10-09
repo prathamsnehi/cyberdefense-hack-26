@@ -1,68 +1,57 @@
-// One agent version in its own process, so a patched file gets a clean runtime and can be killed.
-//   tsx src/sandbox/runner.ts --agent invoice-bot --version v1 --file <abs path to agent.ts> --port 4100 --guard off
-// Prints "READY <port>" once it listens. POST /run {email, attack_id} -> {session_id, ok}.
+// Child-process entry: one process per agent version, so a patched file gets a clean runtime and can be killed.
+//   npx tsx src/sandbox/runner.ts --agent ../targets/invoice-bot/agent.ts --agent-id invoice-bot --version v1 --port 4100 --guard off
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AgentContext, Email, HandleEmail, ToolFn } from "../contracts";
+import { parseArgs } from "node:util";
 import { ROOT } from "../env";
 import { MODELS, target } from "../llm";
-import { localGateway, type GatewayOptions } from "./localGateway";
+import { makeLocalGateway, type Gateway, type GatewayOpts } from "./localGateway";
+import type { Email, HandleEmail } from "../contracts";
 
-const arg = (name: string, fallback?: string) => {
-  const i = process.argv.indexOf(`--${name}`);
-  const v = i >= 0 ? process.argv[i + 1] : fallback;
-  if (v === undefined) throw new Error(`Missing --${name}`);
-  return v;
-};
+const { values: a } = parseArgs({ options: {
+  agent: { type: "string" }, "agent-id": { type: "string" }, version: { type: "string" },
+  port: { type: "string" }, guard: { type: "string", default: "on" },
+} });
 
-const agent_id = arg("agent");
-const version = arg("version");
-const file = resolve(arg("file"));
-const port = Number(arg("port"));
-const guard = arg("guard", "off") === "on";
+const mod = (await import(pathToFileURL(resolve(a.agent!)).href)) as { handleEmail: HandleEmail };
 
-const knownPayees: string[] = JSON.parse(readFileSync(resolve(ROOT, "targets/fixtures/known-payees.json"), "utf8"));
+// WS-C's toolGateway.ts and clickhouse.ts are the real thing. While they are not on main the runner falls back to
+// an in-memory gateway and the committed payee list, so targets and patches can still be exercised.
+// The paths are variables on purpose: a literal import of a missing file breaks the typecheck.
+const optional = async <T>(path: string): Promise<T | null> => { try { return (await import(path)) as T; } catch { return null; } };
+const gw = await optional<{ makeGateway: (o: GatewayOpts) => Gateway }>("../toolGateway");
+const ch = await optional<{ timedQuery: <T>(q: string, p?: Record<string, unknown>) => Promise<{ rows: T[] }> }>("../clickhouse");
+const makeGateway = gw?.makeGateway ?? makeLocalGateway;
+if (!gw) console.error("[runner] src/toolGateway.ts not found: local gateway, no ClickHouse rows");
 
-// WS-C's gateway logs to ClickHouse and enforces the guard. Until it lands, fall back to the in-memory one.
-type GatewayFactory = (o: GatewayOptions) => Record<string, ToolFn>;
-async function loadGateway(): Promise<GatewayFactory> {
-  try {
-    const path = "../toolGateway";  // not a literal: the file belongs to WS-C and may not exist yet
-    const mod: any = await import(path);
-    const factory = mod.toolGateway ?? mod.createToolGateway ?? mod.default;
-    if (typeof factory === "function") return factory;
-    console.error("[runner] src/toolGateway.ts has no gateway factory export; using the local gateway");
-  } catch {
-    console.error("[runner] src/toolGateway.ts not available; using the local gateway (no ClickHouse rows)");
-  }
-  return (o) => localGateway(o);
+let knownPayees: string[] = JSON.parse(readFileSync(resolve(ROOT, "targets/fixtures/known-payees.json"), "utf8"));
+if (ch) {
+  const payees = await ch.timedQuery<{ account: string }>(
+    `SELECT account FROM payees FINAL WHERE agent_id = {id:String}`, { id: a["agent-id"]! });
+  knownPayees = payees.rows.map((r) => r.account);
 }
 
-const gateway = await loadGateway();
-const { handleEmail } = (await import(pathToFileURL(file).href)) as { handleEmail: HandleEmail };
-if (typeof handleEmail !== "function") throw new Error(`${file} does not export handleEmail`);
-
 const app = new Hono();
-app.get("/health", (c) => c.json({ ok: true, agent_id, version, guard }));
 app.post("/run", async (c) => {
-  const { email, attack_id = "" } = (await c.req.json()) as { email: Email; attack_id?: string };
-  const session_id = nanoid(10);
-  const ctx: AgentContext = {
-    llm: target, model: MODELS.target, knownPayees,
-    tools: gateway({ agent_id, version, session_id, attack_id, guard, knownPayees,
-      source: email.external ? "external" : "internal" }),
-  };
+  const { email, attack_id = "" } = await c.req.json<{ email: Email; attack_id?: string }>();
+  const session_id = nanoid(12);
+  const { tools, recordEmail } = makeGateway({
+    agent_id: a["agent-id"]!, version: a.version!, session_id, attack_id,
+    guard: a.guard === "on", knownPayees,
+  });
+  await recordEmail(email);
   try {
-    await handleEmail(email, ctx);
+    await mod.handleEmail(email, { llm: target, model: MODELS.target, tools, knownPayees });
     return c.json({ session_id, ok: true });
   } catch (e) {
-    // The agent crashed or the model call failed: an infra error for the batch runner, not a blocked attack.
-    return c.json({ session_id, ok: false, error: String(e).slice(0, 300) }, 500);
+    return c.json({ session_id, ok: false, error: String(e) }); // a thrown guard ("Blocked: ...") is a valid outcome
   }
 });
 
-serve({ fetch: app.fetch, port }, () => console.log(`READY ${port}`));
+// Port 0 lets the OS pick a free port, so restarts of the parent (tsx watch) never collide with a leftover
+// runner. READY is printed from the listening callback, never before the socket is open.
+serve({ fetch: app.fetch, port: Number(a.port ?? 0) }, (info) => console.log(`READY ${info.port}`));

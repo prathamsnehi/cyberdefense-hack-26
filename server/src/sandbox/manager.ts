@@ -3,48 +3,46 @@ import { resolve } from "node:path";
 import { ROOT } from "../env";
 
 const SERVER = resolve(ROOT, "server");
+// The tsx binary directly (not through npx): one less process between us and the runner, so kill() reaches it.
 const TSX = resolve(SERVER, "node_modules/.bin/tsx");
-const RUNNER = resolve(SERVER, "src/sandbox/runner.ts");
-const READY_TIMEOUT_MS = 30_000;
 
-const running = new Map<string, { child: ChildProcess; url: string }>();
-let nextPort = 4100;
-const key = (agentId: string, version: string) => `${agentId}:${version}`;
+const procs = new Map<string, ChildProcess>();
 
-// Starts one runner process for this agent version and resolves with its base URL once it prints READY.
-export async function startVersion(agentId: string, version: string, file: string, guard: boolean): Promise<string> {
+export async function startVersion(agentId: string, version: string, file: string, guard: boolean) {
+  const key = `${agentId}@${version}`;
   await stopVersion(agentId, version);
-  const port = nextPort++;
-  const child = spawn(TSX, [RUNNER, "--agent", agentId, "--version", version, "--file", file,
-    "--port", String(port), "--guard", guard ? "on" : "off"], { cwd: SERVER, stdio: ["ignore", "pipe", "pipe"] });
-  const url = `http://localhost:${port}`;
-  running.set(key(agentId, version), { child, url });
-
-  await new Promise<void>((ok, fail) => {
-    let stderr = "";
-    const timer = setTimeout(() => fail(new Error(`Runner ${agentId} ${version} not ready after ${READY_TIMEOUT_MS} ms`)), READY_TIMEOUT_MS);
-    child.stdout!.on("data", (d: Buffer) => { if (d.toString().includes(`READY ${port}`)) { clearTimeout(timer); ok(); } });
-    child.stderr!.on("data", (d: Buffer) => { stderr = (stderr + d.toString()).slice(-2000); });
-    child.once("exit", (code) => { clearTimeout(timer); fail(new Error(`Runner ${agentId} ${version} exited (${code}): ${stderr}`)); });
-    child.once("error", (e) => { clearTimeout(timer); fail(e); });
-  }).catch(async (e) => { await stopVersion(agentId, version); throw e; });
-  return url;
+  const p = spawn(TSX, ["src/sandbox/runner.ts", "--agent", resolve(file), "--agent-id", agentId,
+    "--version", version, "--port", "0", "--guard", guard ? "on" : "off"], { cwd: SERVER, stdio: ["ignore", "pipe", "pipe"] });
+  procs.set(key, p);
+  try {
+    const port = await new Promise<number>((ok, fail) => {
+      let stderr = "";
+      const t = setTimeout(() => fail(new Error(`runner ${key} did not start`)), 30000);
+      p.stdout!.on("data", (d) => { const m = String(d).match(/READY (\d+)/); if (m) { clearTimeout(t); ok(Number(m[1])); } });
+      p.stderr!.on("data", (d) => { stderr = (stderr + d).slice(-1000); process.stderr.write(`[${key}] ${d}`); });
+      // Fail fast if the runner dies before READY (bad import, missing env) instead of waiting 30 s.
+      p.once("exit", (code) => { clearTimeout(t); fail(new Error(`runner ${key} exited early (code ${code}): ${stderr.trim()}`)); });
+      p.once("error", (e) => { clearTimeout(t); fail(e); });
+    });
+    return `http://localhost:${port}`;
+  } catch (e) {
+    await stopVersion(agentId, version);
+    throw e;
+  }
 }
 
-export async function stopVersion(agentId: string, version: string): Promise<void> {
-  const entry = running.get(key(agentId, version));
-  if (!entry) return;
-  running.delete(key(agentId, version));
-  const { child } = entry;
-  if (child.exitCode !== null || child.signalCode !== null) return;
+export async function stopVersion(agentId: string, version: string) {
+  const key = `${agentId}@${version}`;
+  const p = procs.get(key);
+  procs.delete(key);
+  if (!p || p.exitCode !== null || p.signalCode !== null) return;
+  // Wait for the exit so the next version never races a dying runner; SIGKILL if it ignores SIGTERM.
   await new Promise<void>((done) => {
-    const force = setTimeout(() => child.kill("SIGKILL"), 3000);
-    child.once("exit", () => { clearTimeout(force); done(); });
-    child.kill("SIGTERM");
+    const force = setTimeout(() => p.kill("SIGKILL"), 3000);
+    p.once("exit", () => { clearTimeout(force); done(); });
+    p.kill();
   });
 }
 
 // Never leave runners behind when the API process goes away.
-const killAll = () => { for (const { child } of running.values()) child.kill("SIGKILL"); };
-process.once("exit", killAll);
-for (const sig of ["SIGINT", "SIGTERM"] as const) process.once(sig, () => { killAll(); process.exit(0); });
+process.once("exit", () => { for (const p of procs.values()) p.kill("SIGKILL"); });

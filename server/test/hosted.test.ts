@@ -53,4 +53,13 @@ describe("standalone Akash dashboard", () => {
     expect(response.headers.get("content-type")).toBe("text/event-stream");
     expect(await response.text()).toContain("id: 5");
   });
+  it("accepts only the explicitly configured Vercel origin", async () => {
+    const split = createHostedApp(api, { ...options, dashboardOrigin: "https://albert-dashboard.vercel.app" });
+    for (const [origin, status] of [["https://albert-dashboard.vercel.app", 200], ["https://other.vercel.app", 403]]) {
+      expect((await split.request("https://akash.example/api/loop/start", {
+        method: "POST", headers: { ...auth, Origin: origin!, "Sec-Fetch-Site": "same-origin", "Content-Type": "application/json" }, body: "{}",
+      })).status).toBe(status);
+    }
+    expect(() => createHostedApp(api, { ...options, dashboardOrigin: "https://albert-dashboard.vercel.app/path" })).toThrow("exact HTTPS origin");
+  });
 });

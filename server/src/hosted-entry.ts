@@ -9,6 +9,7 @@ const hosted = createHostedApp(app, {
   password: process.env.DASHBOARD_PASSWORD ?? "",
   backendToken: env.AGENTGUARD_API_KEY,
   dashboardRoot: resolve(ROOT, "dashboard/dist"),
+  dashboardOrigin: process.env.DASHBOARD_ORIGIN,
 });
 serve({ fetch: hosted.fetch, hostname: "0.0.0.0", port: env.PORT });
 console.log(`Albert AI hosted dashboard on :${env.PORT}`);

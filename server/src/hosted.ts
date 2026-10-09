@@ -7,12 +7,20 @@ export type HostedOptions = {
   password: string;
   backendToken: string;
   dashboardRoot: string;
+  dashboardOrigin?: string;
 };
 
 /** One authenticated origin for the dashboard and API. Model/database credentials never reach the browser. */
 export function createHostedApp(api: Hono, options: HostedOptions) {
   if (!options.username || !options.password || !options.backendToken) {
     throw new Error("Hosted dashboard requires DASHBOARD_USER, DASHBOARD_PASSWORD and AGENTGUARD_API_KEY");
+  }
+  const dashboardOrigin = options.dashboardOrigin;
+  if (dashboardOrigin) {
+    const parsed = new URL(dashboardOrigin);
+    if (parsed.protocol !== "https:" || parsed.origin !== dashboardOrigin) {
+      throw new Error("DASHBOARD_ORIGIN must be an exact HTTPS origin");
+    }
   }
   const host = new Hono();
   // Akash/provider health checks need no access to telemetry or model operations.
@@ -24,7 +32,7 @@ export function createHostedApp(api: Hono, options: HostedOptions) {
       if (c.req.header("sec-fetch-site") === "cross-site") return c.json({ error: "Cross-site request blocked" }, 403);
       if (origin) {
         try {
-          if (new URL(origin).host !== new URL(c.req.url).host) return c.json({ error: "Cross-site request blocked" }, 403);
+          if (new URL(origin).host !== new URL(c.req.url).host && origin !== dashboardOrigin) return c.json({ error: "Cross-site request blocked" }, 403);
         } catch { return c.json({ error: "Invalid origin" }, 403); }
       }
     }

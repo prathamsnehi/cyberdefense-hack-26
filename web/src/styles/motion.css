@@ -1,0 +1,649 @@
+/*
+  Albert AI motion layer.
+  Imported after index.css. Tokens only, no raw colors.
+  Rules: transform, opacity and stroke-dashoffset only. Custom ease-out curves.
+  Every keyframe animates FROM a hidden state TO the element's resting style,
+  so when animations are disabled (reduced motion) content is fully visible.
+*/
+
+/* ------------------------------------------------------------------ */
+/* Brand entrances                                                     */
+/* ------------------------------------------------------------------ */
+
+@keyframes albert-logo-bar {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+}
+
+@keyframes albert-logo-word {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+@keyframes albert-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.anim-logo-bar {
+  transform-origin: 50% 100%;
+  animation: albert-logo-bar 420ms var(--ease-out) both;
+}
+
+.anim-logo-word {
+  animation: albert-logo-word 420ms var(--ease-out) 80ms both;
+}
+
+.anim-fade-up {
+  animation: albert-fade-up 500ms var(--ease-out) both;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reveal stagger                                                      */
+/* Use on a .reveal container. The container itself stays put, its    */
+/* children fade up one after another using the --i custom property.   */
+/* ------------------------------------------------------------------ */
+
+.reveal.reveal-stagger {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity var(--duration-reveal) var(--ease-out),
+    transform var(--duration-reveal) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 60ms);
+}
+
+.reveal-stagger.is-visible > *,
+.is-visible .reveal-stagger > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Loop section                                                        */
+/* Wrapper states: .is-entered (intro played), .is-running (cycling).  */
+/* ------------------------------------------------------------------ */
+
+/* Cards: intro scale from 0.93, then active lift */
+.loop-card {
+  opacity: 0;
+  transform: scale(0.93);
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+  transition-delay: calc(160ms + var(--i, 0) * 60ms);
+}
+
+.is-entered .loop-card {
+  opacity: 1;
+  transform: none;
+}
+
+.is-running .loop-card {
+  transition-delay: 0ms;
+}
+
+.is-entered .loop-card.is-active {
+  transform: translateY(-2px);
+}
+
+/* Active highlight lives on a pseudo element so only opacity animates */
+.loop-card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--albert-accent);
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--albert-accent) 12%, transparent),
+    0 12px 36px -12px color-mix(in oklab, var(--albert-accent) 55%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.loop-card.is-active::after {
+  opacity: 1;
+}
+
+/* Central oval */
+.loop-oval-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36%;
+  height: 24%;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+
+.loop-oval {
+  border-radius: 50%;
+  background-image: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--albert-accent) 9%, transparent),
+    transparent
+  );
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 500ms var(--ease-out),
+    transform 500ms var(--ease-out);
+}
+
+.is-entered .loop-oval {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes albert-oval-pulse {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+.loop-oval-pulse {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--albert-accent);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: albert-oval-pulse 900ms var(--ease-out) both;
+}
+
+/* Arrows. Paths use pathLength="1" so dash math is normalized. */
+.loop-arrow-base {
+  stroke: var(--albert-hairline-strong);
+  stroke-width: 0.25;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 700ms var(--ease-out);
+  transition-delay: calc(700ms + var(--i, 0) * 90ms);
+}
+
+.is-entered .loop-arrow-base {
+  stroke-dashoffset: 0;
+}
+
+.loop-arrow-fill {
+  stroke: var(--albert-accent);
+  stroke-width: 0.35;
+  stroke-linecap: butt;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  /* Fade out first, then reset the dash once invisible */
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    stroke-dashoffset 0ms linear var(--duration-slow);
+}
+
+.loop-arrow.is-active .loop-arrow-fill {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    stroke-dashoffset 700ms var(--ease-out);
+}
+
+/* Traveling dot: a near zero length dash with round caps */
+.loop-arrow-dot {
+  stroke: var(--albert-accent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-dasharray: 0.001 2;
+  stroke-dashoffset: 0;
+  opacity: 0;
+  transition: none;
+}
+
+.loop-arrow.is-active .loop-arrow-dot {
+  stroke-dashoffset: -1;
+  opacity: 1;
+  transition:
+    stroke-dashoffset 1200ms var(--ease-in-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+/* Chevrons at arc midpoints */
+.loop-chevron {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-out);
+  transition-delay: calc(1100ms + var(--i, 0) * 90ms);
+}
+
+.is-entered .loop-chevron {
+  opacity: 1;
+}
+
+.loop-chevron-base,
+.loop-chevron-fill {
+  stroke-width: 0.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.loop-chevron-base {
+  stroke: var(--albert-fg-muted);
+}
+
+.loop-chevron-fill {
+  stroke: var(--albert-accent);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.loop-arrow.is-active .loop-chevron-fill {
+  opacity: 1;
+  transition-delay: 300ms;
+}
+
+/* Mobile rail between step nodes */
+.loop-rail-fill {
+  transform: scaleY(0);
+  transform-origin: 50% 0%;
+  transition: transform 500ms var(--ease-out);
+}
+
+.loop-rail-fill.is-filled {
+  transform: none;
+}
+
+.loop-node::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--albert-accent);
+  border-radius: inherit;
+  box-shadow: 0 0 18px -4px color-mix(in oklab, var(--albert-accent) 60%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+.loop-node.is-active::after {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Threat chain                                                        */
+/* States on .threat-chain: .is-idle, .is-playing, .is-static.         */
+/* .is-paused freezes the loop when offscreen or the tab is hidden.    */
+/* ------------------------------------------------------------------ */
+
+.threat-chain {
+  --wire-off: scaleY(0);
+  --wire-origin: 50% 0%;
+  --rail-to: translateY(100%);
+}
+
+@media (min-width: 48rem) {
+  .threat-chain {
+    --wire-off: scaleX(0);
+    --wire-origin: 0% 50%;
+    --rail-to: translateX(100%);
+  }
+}
+
+.threat-wire-fill {
+  transform: var(--wire-off);
+  transform-origin: var(--wire-origin);
+}
+
+.threat-glow {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--albert-accent);
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--albert-accent) 10%, transparent),
+    0 12px 36px -14px color-mix(in oklab, var(--albert-accent) 55%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.threat-glow-strong {
+  background-color: var(--albert-accent-subtle);
+}
+
+.threat-packet {
+  opacity: 0;
+  box-shadow: 0 0 14px -2px color-mix(in oklab, var(--albert-accent) 70%, transparent);
+}
+
+.threat-paid {
+  opacity: 0;
+}
+
+.threat-chain.is-static .threat-wire-fill {
+  transform: none;
+}
+
+.threat-chain.is-static .threat-glow,
+.threat-chain.is-static .threat-paid {
+  opacity: 1;
+}
+
+@keyframes threat-wire-a {
+  0% {
+    transform: var(--wire-off);
+    opacity: 1;
+  }
+  12%,
+  84% {
+    transform: none;
+    opacity: 1;
+  }
+  92%,
+  100% {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+@keyframes threat-wire-b {
+  0%,
+  32% {
+    transform: var(--wire-off);
+    opacity: 1;
+  }
+  44%,
+  84% {
+    transform: none;
+    opacity: 1;
+  }
+  92%,
+  100% {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+@keyframes threat-rail-a {
+  0%,
+  12% {
+    transform: none;
+  }
+  30%,
+  100% {
+    transform: var(--rail-to);
+  }
+}
+
+@keyframes threat-rail-b {
+  0%,
+  44% {
+    transform: none;
+  }
+  62%,
+  100% {
+    transform: var(--rail-to);
+  }
+}
+
+@keyframes threat-packet-a {
+  0%,
+  10% {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+  14%,
+  27% {
+    opacity: 1;
+    transform: none;
+  }
+  31%,
+  100% {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+}
+
+@keyframes threat-packet-b {
+  0%,
+  42% {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+  46%,
+  59% {
+    opacity: 1;
+    transform: none;
+  }
+  63%,
+  100% {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+}
+
+@keyframes threat-glow-a {
+  0% {
+    opacity: 0;
+  }
+  3%,
+  14% {
+    opacity: 1;
+  }
+  24%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes threat-glow-b {
+  0%,
+  26% {
+    opacity: 0;
+  }
+  30%,
+  84% {
+    opacity: 1;
+  }
+  92%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes threat-glow-c {
+  0%,
+  60% {
+    opacity: 0;
+  }
+  62% {
+    opacity: 1;
+  }
+  68%,
+  84% {
+    opacity: 0.75;
+  }
+  92%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes threat-paid {
+  0%,
+  61% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.93);
+  }
+  65%,
+  84% {
+    opacity: 1;
+    transform: none;
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+.threat-chain.is-playing .threat-anim {
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  animation-timing-function: var(--ease-out);
+}
+
+.threat-chain.is-playing .threat-rail {
+  animation-timing-function: var(--ease-in-out);
+}
+
+.threat-chain.is-playing .threat-wire-a {
+  animation-name: threat-wire-a;
+}
+
+.threat-chain.is-playing .threat-wire-b {
+  animation-name: threat-wire-b;
+}
+
+.threat-chain.is-playing .threat-rail-a {
+  animation-name: threat-rail-a;
+}
+
+.threat-chain.is-playing .threat-rail-b {
+  animation-name: threat-rail-b;
+}
+
+.threat-chain.is-playing .threat-packet-a {
+  animation-name: threat-packet-a;
+}
+
+.threat-chain.is-playing .threat-packet-b {
+  animation-name: threat-packet-b;
+}
+
+.threat-chain.is-playing .threat-glow-a {
+  animation-name: threat-glow-a;
+}
+
+.threat-chain.is-playing .threat-glow-b {
+  animation-name: threat-glow-b;
+}
+
+.threat-chain.is-playing .threat-glow-c {
+  animation-name: threat-glow-c;
+}
+
+.threat-chain.is-playing .threat-paid {
+  animation-name: threat-paid;
+}
+
+.threat-chain.is-paused .threat-anim {
+  animation-play-state: paused;
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion: static, fully visible, no loops, no travel.         */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-logo-bar,
+  .anim-logo-word,
+  .anim-fade-up {
+    animation: none;
+  }
+
+  .reveal-stagger > * {
+    transform: none;
+    transition: opacity var(--duration-fast) linear;
+    transition-delay: 0ms;
+  }
+
+  .loop-card,
+  .is-entered .loop-card,
+  .is-entered .loop-card.is-active {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .loop-card::after,
+  .loop-node::after {
+    transition: opacity var(--duration-fast) linear;
+  }
+
+  .loop-oval,
+  .is-entered .loop-oval {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .loop-oval-pulse {
+    display: none;
+  }
+
+  .loop-arrow-base,
+  .is-entered .loop-arrow-base {
+    stroke-dashoffset: 0;
+    transition: none;
+  }
+
+  .loop-chevron,
+  .is-entered .loop-chevron {
+    opacity: 1;
+    transition: none;
+  }
+
+  .loop-arrow-fill,
+  .loop-arrow.is-active .loop-arrow-fill {
+    stroke-dashoffset: 0;
+    transition: opacity var(--duration-fast) linear;
+  }
+
+  .loop-arrow.is-active .loop-chevron-fill {
+    transition: opacity var(--duration-fast) linear;
+    transition-delay: 0ms;
+  }
+
+  .loop-arrow-dot,
+  .loop-arrow.is-active .loop-arrow-dot {
+    opacity: 0;
+    transition: none;
+  }
+
+  .loop-rail-fill,
+  .loop-rail-fill.is-filled {
+    transform: none;
+    transition: none;
+  }
+
+  .threat-chain .threat-anim {
+    animation: none;
+  }
+
+  .threat-wire-fill {
+    transform: none;
+  }
+
+  .threat-glow,
+  .threat-paid {
+    opacity: 1;
+  }
+
+  .threat-packet {
+    opacity: 0;
+  }
+}

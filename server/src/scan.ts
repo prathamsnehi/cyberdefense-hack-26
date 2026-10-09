@@ -9,9 +9,10 @@ type SemgrepResult = { check_id: string; path: string; start: { line: number }; 
   extra: { message: string; severity: string } };
 
 export function parseSemgrep(stdout: string): Omit<Finding, "snippet">[] {
-  let parsed: { results?: SemgrepResult[] };
-  try { parsed = JSON.parse(stdout); } catch { return []; }
-  return (parsed?.results ?? []).map((r) => ({
+  let parsed: { results?: SemgrepResult[]; errors?: unknown[] };
+  try { parsed = JSON.parse(stdout); } catch { throw new Error('Invalid Semgrep JSON output'); }
+  if (!parsed || !Array.isArray(parsed.results) || (parsed.errors?.length ?? 0) > 0) throw new Error('Semgrep scan failed or returned incomplete results');
+  return parsed.results.map((r) => ({
     id: `${r.check_id}:${r.path}:${r.start.line}`, rule_id: r.check_id, file: r.path,
     line: r.start.line, end_line: r.end.line,
     severity: (["ERROR", "WARNING", "INFO"].includes(r.extra.severity) ? r.extra.severity : "WARNING") as Finding["severity"],
@@ -35,6 +36,6 @@ export const rulesets = () => [
 export async function scan(target: string, configs: string[] = rulesets()): Promise<Finding[]> {
   const args = ["scan", ...configs.flatMap((c) => ["--config", c]), "--json", "--metrics=off", "--quiet",
     "--no-git-ignore", target];
-  const { stdout } = await execa(env.SEMGREP_BIN, args, { cwd: ROOT, reject: false });
+  const { stdout } = await execa(env.SEMGREP_BIN, args, { cwd: ROOT });
   return Promise.all(parseSemgrep(stdout).map(async (f) => ({ ...f, snippet: await snippetOf(f.file, f.line, f.end_line) })));
 }

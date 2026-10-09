@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/contracts.ts", "src/env.ts", "src/clickhouse.ts", "src/queries.ts", "src/tools.ts", "src/bus.ts", "src/event-stream.ts", "scripts/apply-schema.ts", "scripts/verify-clickhouse.ts", "test/tools.test.ts", "test/env.test.ts", "test/clickhouse.test.ts", "test/queries.test.ts"]
+}

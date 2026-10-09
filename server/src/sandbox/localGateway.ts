@@ -1,39 +1,43 @@
-// Dev fallback for ctx.tools, used by the runner only while WS-C's src/toolGateway.ts is not on main.
-// Same shape as makeGateway() there, but in memory: nothing reaches ClickHouse, so the oracle (A3) sees no rows.
-import type { Email, ToolFn } from "../contracts";
+// Dev fallback for ctx.tools: the same tool names and argument checks as createToolGateway() in src/tools.ts, but
+// in memory. Nothing reaches ClickHouse, so the oracle (A3) sees no rows. Start the runner with `--gateway local`.
+import type { AgentEvent, ToolFn } from "../contracts";
 
-export type GatewayOpts = {
-  agent_id: string; version: string; session_id: string; attack_id: string;
-  guard: boolean; knownPayees: string[];
+export type GatewayContext = {
+  run_id: string; agent_id: string; version: string; session_id: string;
+  attack_id: string; source: AgentEvent["source"]; guard: boolean;
 };
-export type Gateway = { tools: Record<string, ToolFn>; recordEmail: (email: Email) => Promise<void> };
 
-// Money-moving tools and the argument that names the destination.
-const MONEY_TOOLS: Record<string, string> = { payInvoice: "account", issueRefund: "card", updateBankDetails: "iban" };
+const text = (args: Record<string, unknown>, key: string) => {
+  const value = args[key];
+  if (typeof value !== "string" || !value.trim()) throw new Error(`Invalid ${key}`);
+  return value;
+};
 
-export function makeLocalGateway(o: GatewayOpts): Gateway {
-  let external = false;
+export function createLocalGateway(o: GatewayContext, knownPayees: string[]): Record<string, ToolFn> {
   const log = (event: string, tool: string, args: unknown) =>
     console.log(`[local-gateway] ${o.agent_id}@${o.version} ${o.session_id} ${event} ${tool} ${JSON.stringify(args)}`);
-
-  const money = (name: string, field: string): ToolFn => async (args) => {
-    const dest = String(args[field] ?? "");
-    const isNew = !o.knownPayees.includes(dest);
-    if (o.guard && isNew && external) {
-      log("tool_blocked", name, args);
-      return `BLOCKED by AgentGuard: ${dest} is a new payee and this session read external email.`;
-    }
-    log(`tool_call is_new_payee=${isNew ? 1 : 0}`, name, args);
-    return `${name} OK (simulated) → ${dest}`;
-  };
-  const plain = (name: string, result: string): ToolFn => async (args) => { log("tool_call", name, args); return result; };
-
   return {
-    tools: {
-      ...Object.fromEntries(Object.entries(MONEY_TOOLS).map(([n, f]) => [n, money(n, f)])),
-      sendEmail: plain("sendEmail", "email sent (simulated)"),
-      readLedger: plain("readLedger", JSON.stringify([{ vendor: "ACME", account: "ACME-001", due: 1200 }])),
+    async payInvoice(args) {
+      const account = text(args, "account"), invoice_id = text(args, "invoice_id");
+      const amount = args.amount;
+      if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) throw new Error("Invalid USD amount");
+      const isNew = !knownPayees.includes(account);
+      if (o.guard && isNew) {
+        log("tool_blocked", "payInvoice", args);
+        throw Object.assign(new Error("Unknown payment destination blocked"), { code: "TOOL_BLOCKED" });
+      }
+      log(`tool_call is_new_payee=${isNew ? 1 : 0}`, "payInvoice", { account, amount, invoice_id });
+      return JSON.stringify({ ok: true, sandbox: true, tool: "payInvoice", account, amount, invoice_id });
     },
-    recordEmail: async (email) => { external = email.external; log("email_received", "", { from: email.from, subject: email.subject }); },
+    async readLedger(args) {
+      const account = text(args, "account");
+      log("tool_call", "readLedger", { account });
+      return JSON.stringify({ ok: true, sandbox: true, tool: "readLedger", account, entries: [] });
+    },
+    async sendEmail(args) {
+      const to = text(args, "to"), subject = text(args, "subject"), body = text(args, "body");
+      log("tool_call", "sendEmail", { to, subject });
+      return JSON.stringify({ ok: true, sandbox: true, tool: "sendEmail", to, subject, body });
+    },
   };
 }

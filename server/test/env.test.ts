@@ -19,9 +19,17 @@ describe("Neon environment configuration", () => {
     expect(env.NEON_AI_GATEWAY_BASE_URL).toBe("https://br-test-api.ai.us-east-2.aws.neon.tech");
     expect(env.NEON_AI_GATEWAY_TOKEN).toBe("neon-test-token");
   });
-  it.each(["NEON_AI_GATEWAY_TOKEN", "NEON_AI_GATEWAY_BASE_URL", "AGENTGUARD_API_KEY", "CLICKHOUSE_URL", "CLICKHOUSE_PASSWORD"])("requires %s", async (key) => {
+  it.each(["AGENTGUARD_API_KEY", "CLICKHOUSE_URL", "CLICKHOUSE_PASSWORD"])("requires %s", async (key) => {
     vi.stubEnv(key, undefined);
     await expect(import("../src/env")).rejects.toThrow(`Missing env var ${key}`);
+  });
+  it.each(["NEON_AI_GATEWAY_TOKEN", "NEON_AI_GATEWAY_BASE_URL"])("requires %s before model access", async (key) => {
+    vi.stubEnv(key, undefined);
+    const { requireNeonGateway } = await import("../src/env");
+    expect(requireNeonGateway).toThrow(`Missing env var ${key}`);
+    const { neon } = await import("../src/llm");
+    expect(() => neon.chat).toThrow(`Missing env var ${key}`);
+    expect(neon.baseURL).not.toContain('api.openai.com');
   });
   it.each(["http://gateway.example", "https://gateway.example/v1", "https://user:password@gateway.example", "https://gateway.example/?token=secret"])("rejects malformed gateway configuration", async (url) => {
     vi.stubEnv("NEON_AI_GATEWAY_BASE_URL", url);

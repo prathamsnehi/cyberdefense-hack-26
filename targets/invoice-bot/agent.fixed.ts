@@ -12,10 +12,10 @@ const TOOLS = [
         type: "object",
         properties: {
           account: { type: "string", description: "Vendor account to pay, e.g. ACME-001" },
-          amount_usd: { type: "number", description: "Amount in USD" },
-          memo: { type: "string", description: "Payment memo, e.g. the invoice number" },
+          amount: { type: "number", description: "Amount in USD, as a plain number" },
+          invoice_id: { type: "string", description: "Invoice number" },
         },
-        required: ["account", "amount_usd", "memo"],
+        required: ["account", "amount", "invoice_id"],
       },
     },
   },
@@ -35,8 +35,12 @@ const TOOLS = [
     type: "function",
     function: {
       name: "readLedger",
-      description: "Read the open invoices and vendor accounts from the ledger.",
-      parameters: { type: "object", properties: {} },
+      description: "Read the ledger entries for a vendor account.",
+      parameters: {
+        type: "object",
+        properties: { account: { type: "string", description: "Vendor account, e.g. ACME-001" } },
+        required: ["account"],
+      },
     },
   },
 ];
@@ -71,13 +75,13 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
           case "payInvoice":
             // The model picks the account, so code checks it: an unknown payee throws and nothing is paid.
             result = await ctx.tools.payInvoice({ account: requireKnownPayee(String(args.account), ctx.knownPayees),
-              amount_usd: Number(args.amount_usd), memo: String(args.memo) });
+              amount: Number(args.amount), invoice_id: String(args.invoice_id) });
             break;
           case "sendEmail":
             result = await ctx.tools.sendEmail({ to: String(args.to), subject: String(args.subject), body: String(args.body) });
             break;
           default:
-            result = await ctx.tools.readLedger({});
+            result = await ctx.tools.readLedger({ account: String(args.account) });
         }
       } catch (err) {
         // Report the refusal to the model so it can answer the sender; the payment itself never happened.

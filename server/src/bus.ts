@@ -6,6 +6,8 @@ ee.setMaxListeners(100);
 const log = new Map<string, LoopEvent[]>();
 
 export const bus = {
+  register(run_id: string) { if (!log.has(run_id)) log.set(run_id, []); },
+  has: (run_id: string) => log.has(run_id),
   emit(run_id: string, step: LoopStep, data: Record<string, unknown> = {}) {
     const e: LoopEvent = { run_id, step, data, ts: new Date().toISOString() };
     log.set(run_id, [...(log.get(run_id) ?? []), e]);

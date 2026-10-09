@@ -20,6 +20,9 @@ export type HandleEmail = (email: Email, ctx: AgentContext) => Promise<void>;
 export type EventType = "email_received" | "llm_call" | "tool_call" | "tool_blocked";
 
 export type AgentEvent = {
+  event_id?: string;
+  run_id?: string;
+  guard_ms?: number | null;
   agent_id: string;          // "invoice-bot"
   version: string;           // "v1", "v2", ...
   session_id: string;        // one email = one session

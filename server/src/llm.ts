@@ -1,14 +1,19 @@
 import OpenAI from "openai";
-import { env } from "./env";
+import { env, requireNeonGateway } from "./env";
 
 // A hung model call must not freeze the demo: two minutes, one retry.
 const opts = { timeout: 120_000, maxRetries: 1 };
 
-export const neon = new OpenAI({
-  apiKey: env.NEON_AI_GATEWAY_TOKEN,
-  baseURL: `${env.NEON_AI_GATEWAY_BASE_URL}/v1`,
+const neonClient = new OpenAI({
+  apiKey: env.NEON_AI_GATEWAY_TOKEN || "missing",
+  baseURL: env.OPENAI_BASE_URL || "https://neon-gateway-unconfigured.invalid/v1",
   ...opts,
 });
+export const neon = new Proxy(neonClient, { get(client, key) {
+  if (key === 'chat') requireNeonGateway();
+  const value = Reflect.get(client, key, client);
+  return typeof value === 'function' ? value.bind(client) : value;
+} });
 // Compatibility for workstreams that still import this name; it always routes through Neon.
 export const openai = neon;
 // Akash is optional; env.ts requires its key only when TARGET_PROVIDER=akash.

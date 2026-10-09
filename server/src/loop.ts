@@ -74,6 +74,7 @@ export async function runLoop(run_id: string, agent_id: string) {
     // 4b. Learn a rule for the whole flaw class, then sweep every agent
     const firstAttack = corpus.find((a) => base.find((r) => r.attack_id === a.id && r.success));
     const rule = await learnRule(v1File, accepted.file, v1Code, fixedCode, firstAttack);
+    await insertRows('learned_rules', [{ run_id, rule_id: rule.rule_id }]);
     bus.emit(run_id, "rule", rule);
     const sweep = (await scan(resolve(ROOT, "targets"), [rule.path])).filter((f) => !f.file.includes(`/${agent_id}/`));
     await recordFindings(run_id, sweep, "learned");

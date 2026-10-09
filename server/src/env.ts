@@ -11,20 +11,24 @@ const req = (k: string) => {
   return v;
 };
 const opt = (k: string, d = "") => process.env[k] || d;
+if (opt('CLICKHOUSE_DATABASE', 'albert') !== 'albert') throw new Error('Albert schema requires CLICKHOUSE_DATABASE=albert');
 
 const targetProvider = opt("TARGET_PROVIDER", "neon");
 if (!["neon", "akash"].includes(targetProvider)) {
   throw new Error("TARGET_PROVIDER must be neon or akash (see .env.example)");
 }
-const gatewayBase = req("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
+const gatewayBase = opt("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
+function validateGatewayHost(host: string) {
 try {
-  const url = new URL(gatewayBase);
+  const url = new URL(host);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
     throw new Error("invalid");
   }
 } catch {
   throw new Error("NEON_AI_GATEWAY_BASE_URL must be a bare HTTPS host (see .env.example)");
 }
+}
+if (gatewayBase) validateGatewayHost(gatewayBase);
 const akashKey = opt("AKASHML_API_KEY") || opt("AKASH_API_KEY");
 if (targetProvider === "akash" && !akashKey) throw new Error("Missing env var AKASHML_API_KEY (or AKASH_API_KEY)");
 
@@ -34,11 +38,17 @@ export const env = {
   AGENTGUARD_API_KEY: req("AGENTGUARD_API_KEY"),
   AGENT_RUNTIME: opt("AGENT_RUNTIME", "local") as "local" | "guild",
   TARGET_PROVIDER: targetProvider as "neon" | "akash",
-  NEON_AI_GATEWAY_TOKEN: req("NEON_AI_GATEWAY_TOKEN"),
+  NEON_AI_GATEWAY_TOKEN: opt("NEON_AI_GATEWAY_TOKEN"),
   NEON_AI_GATEWAY_BASE_URL: gatewayBase,
   NEON_MODEL: opt("NEON_MODEL", "gpt-5"),
   NEON_FAST_MODEL: opt("NEON_FAST_MODEL", "gpt-5-mini"),
   NEON_TARGET_MODEL: opt("NEON_TARGET_MODEL", "gpt-5-mini"),
+  // Existing workstream names remain aliases for Neon configuration.
+  OPENAI_API_KEY: opt("NEON_AI_GATEWAY_TOKEN"),
+  OPENAI_BASE_URL: gatewayBase ? `${gatewayBase}/v1` : "",
+  OPENAI_MODEL: opt("NEON_MODEL", opt("OPENAI_MODEL", "gpt-5")),
+  OPENAI_FAST_MODEL: opt("NEON_FAST_MODEL", opt("OPENAI_FAST_MODEL", "gpt-5-mini")),
+  OPENAI_TARGET_MODEL: opt("NEON_TARGET_MODEL", opt("OPENAI_TARGET_MODEL", "gpt-5-mini")),
   AKASHML_API_KEY: akashKey,
   AKASHML_MODEL: opt("AKASHML_MODEL", "openai/gpt-oss-120b"),
   TARGET_MODEL: opt("TARGET_MODEL", "meta-llama/Llama-3.3-70B-Instruct"),
@@ -52,3 +62,11 @@ export const env = {
   GITHUB_REPO: opt("GITHUB_REPO") || opt("GH_REPO_NAME", "prathamsnehi/cyberdefense-hack-26"),
   SEMGREP_BIN: opt("SEMGREP_BIN", "semgrep"),
 };
+
+/** Database and dashboard imports need no model credential; actual model calls do. */
+export function requireNeonGateway() {
+  const apiKey = req("NEON_AI_GATEWAY_TOKEN");
+  const host = req("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
+  validateGatewayHost(host);
+  return { apiKey, baseURL: `${host}/v1` };
+}

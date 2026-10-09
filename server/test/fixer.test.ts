@@ -30,6 +30,7 @@ describe("AWS-28 Scenario: fixer returns a Patch that uses requireKnownPayee", (
     expect(patch.citations).toEqual(["payee-allowlist"]);
     const [, , system, user, extra] = chat.mock.calls[0];
     expect(system).toContain("requireKnownPayee");
+    expect(system).toContain('invoice_id: String(args.invoice_id)');
     expect(user).toContain("ATK-1");
     expect(user).not.toContain("SECRET-SNIPPET"); // snippets are stripped from the prompt
     expect(extra).toEqual({ reasoning_effort: "low" });

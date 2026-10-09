@@ -12,7 +12,7 @@ const FIXER_SYSTEM = `You fix security flaws in a TypeScript AI agent. Rules:
     if (!ALLOWED.has(call.function.name)) continue;
     const args = JSON.parse(call.function.arguments);
     await ctx.tools.payInvoice({ account: requireKnownPayee(String(args.account), ctx.knownPayees),
-                                 amount_usd: Number(args.amount_usd), memo: String(args.memo) });
+                                 amount: Number(args.amount), invoice_id: String(args.invoice_id) });
   Pass the RETURN VALUE of requireKnownPayee as the account. Never pass model-chosen arguments straight to a
   money tool, and never call ctx.tools[name](args) for a money tool.
 - Cite the lessons you used by their id.

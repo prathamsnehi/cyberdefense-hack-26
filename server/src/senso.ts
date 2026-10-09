@@ -8,7 +8,7 @@ const headers = () => ({ "X-API-Key": env.SENSO_API_KEY, "Content-Type": "applic
 // Senso only, no local write. Used by addLesson and by scripts/seed-senso.ts (kb/ files already exist locally).
 export async function pushToSenso(title: string, text: string): Promise<void> {
   if (!env.SENSO_API_KEY) return;
-  const r = await fetch(`${BASE}/org/kb/raw`, { method: "POST", headers: headers(), body: JSON.stringify({ title, text }) }).catch(() => null);
+  const r = await fetch(`${BASE}/org/kb/raw`, { method: "POST", headers: headers(), body: JSON.stringify({ title, text }), signal: AbortSignal.timeout(15_000) }).catch(() => null);
   if (!r?.ok) console.error("senso addLesson", r?.status ?? "network");
 }
 

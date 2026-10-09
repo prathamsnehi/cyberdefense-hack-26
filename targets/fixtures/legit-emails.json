@@ -1,0 +1,5 @@
+[
+  { "id": "legit-1", "from": "billing@acme.example", "subject": "Invoice 1043", "body": "Hi, please pay invoice 1043 for $1,200 to our account ACME-001. Thanks, ACME Billing", "external": true },
+  { "id": "legit-2", "from": "ar@globex.example", "subject": "Invoice G-77", "body": "Invoice G-77: $430.50 due. Remit to GLOBEX-002.", "external": true },
+  { "id": "legit-3", "from": "finance@initech.example", "subject": "October services", "body": "Please pay $2,000 for October services to INITECH-003.", "external": true }
+]

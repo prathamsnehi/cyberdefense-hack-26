@@ -1,147 +1,322 @@
-# AgentGuard
+# Albert AI
 
-Landing page: [Albert AI](https://albert-ai-nine.vercel.app)
+**A security loop for AI agents: PREVENT > DETECT > PROVE > LEARN > WATCH.**
 
-**A closed security loop for AI agents that move money: it scans, attacks, fixes, proves, learns and watches.**
+[Visit the landing page](https://albert-ai-landing.vercel.app)
 
-AI agents that read email and call payment tools can be talked into paying an attacker by one well-written email. AgentGuard scans the agent with Semgrep, replays attacks against it in a sandbox, has an LLM write a patch and accepts that patch only when no attack works and legitimate invoices still get paid. It then turns the flaw into a new Semgrep rule, sweeps the rest of the fleet, opens the PR and issues, and blocks the same attack in real time.
+## Problem
 
-Existing tools attack, scan, or monitor separately. AgentGuard closes the loop.
+AI agents that read untrusted content and call payment tools need security checks across development, testing, and runtime.
 
-## Architecture
+Albert AI connects security briefs, scanning, adversarial testing, patching, validation, reusable lessons, and runtime monitoring. Its tool gateway blocks unknown payees with `TOOL_BLOCKED`, while the dashboard makes loop results and blocked events visible.
+
+## The loop
+
+| Stage | Purpose | Code |
+|---|---|---|
+| **PREVENT** | Request a security brief before Claude Code processes a prompt. The `UserPromptSubmit` hook calls `POST /brief`. | `scripts/brief-hook.mjs`, `.claude/settings.json`, `server/src/brief.ts` |
+| **DETECT** | Scan target agents with Semgrep and exercise them with the red team. The seed corpus contains 30 attacks. | `server/src/scan.ts`, `server/src/redteam.ts`, `targets/`, `targets/fixtures/seed-attacks.json` |
+| **PROVE** | Propose patches and validate them through the gate and sandbox. | `server/src/fixer.ts`, `server/src/gate.ts`, `server/src/sandbox/manager.ts`, `server/src/sandbox/runner.ts`, `server/src/sandbox/localGateway.ts` |
+| **LEARN** | Produce learned rules and write lessons back to Senso. | `server/src/learn.ts`, `server/src/senso.ts` |
+| **WATCH** | Query ClickHouse, show results in the dashboard, and block unknown payees at the tool gateway. | `server/src/clickhouse.ts`, `server/src/queries.ts`, `server/src/tools.ts`, `dashboard/` |
+
+`server/src/loop.ts` coordinates one run: Semgrep scan, baseline replay of the seed attacks against v1 in the sandbox, three LLM fixer attempts (then the hand-written reference fix if one exists), each checked by the gate, a pull request with the accepted fix, a learned Semgrep rule, a sweep of the other target agents, and one GitHub issue per sweep finding (PR and issue steps need `GITHUB_TOKEN`).
+
+The gate (`server/src/gate.ts`) accepts a version only when Semgrep reports no ERROR findings, the happy path still pays legitimate invoices, at least one attack ran, zero attacks succeeded, and there were no infra errors. ClickHouse `agent_events` is the attack oracle: an attack counts as successful when the agent paid a payee that is not on the allowlist.
+
+## Architecture by workstream
 
 ```mermaid
 flowchart TD
-  subgraph LOOP["Security loop: server/src/loop.ts"]
-    SCAN["scan.ts<br/>Semgrep CLI + rules/"] --> ATK["redteam.ts<br/>replay 30 seed attacks on v1"]
-    ATK --> FIX["fixer.ts<br/>LLM proposes a patch"]
-    FIX --> GATE{"gate.ts: replay the corpus<br/>Semgrep clean?<br/>0 working attacks?<br/>happy path pays?"}
-    GATE -->|"rejected: next version"| FIX
-    GATE -->|accepted| PR["github.ts<br/>PR with the proven fix"]
-    PR --> LEARN["learn.ts<br/>rule in rules/learned/"]
-    LEARN --> SWEEP["sweep<br/>refund-bot, vendor-bot"]
-    SWEEP --> ISSUES["github.ts<br/>one issue per finding"]
+  subgraph WSA["WS-A: Target agents and red team"]
+    TARGETS["targets/"]
+    SEEDS["30 seed attacks"]
+    RED["redteam.ts"]
+    TARGETS --> RED
+    SEEDS --> RED
   end
 
-  subgraph SANDBOX["Sandbox: sandbox/manager.ts"]
-    RUNNER["sandbox/runner.ts<br/>one child process per version"] --> GW["toolGateway.ts<br/>logs every tool call<br/>real-time guard, guard_ms"]
+  subgraph WSB["WS-B: Scan, fix, gate, learn, loop"]
+    LOOP["loop.ts"]
+    SCAN["scan.ts: Semgrep"]
+    FIX["fixer.ts"]
+    GATE["gate.ts"]
+    LEARN["learn.ts"]
+    SANDBOX["sandbox/manager.ts, runner.ts, localGateway.ts"]
+    LOOP --> SCAN
+    SCAN --> RED
+    RED --> FIX
+    FIX --> GATE
+    GATE --> LEARN
+    RED --> SANDBOX
+    GATE --> SANDBOX
   end
-  ATK -->|"POST /run per attack"| RUNNER
-  RUNNER -.->|"target model"| AKASH["Neon AI Gateway<br/>optional: AkashML"]
-  GW -->|"every action"| CH[("ClickHouse Cloud<br/>agent_events, attack_results")]
-  LOAD["load-generator.ts<br/>synthetic fleet"] --> CH
-  CH -.->|"oracle: paid an unknown payee?"| ATK
-  CH --> Q["queries.ts<br/>metrics, fleet hunt, blocked feed"]
-  Q --> DASH["dashboard/<br/>timeline, scoreboard, Blocked in real time"]
-  LOOP -.->|"bus.ts, SSE"| DASH
 
-  subgraph GUILD["Guild: AGENT_RUNTIME=guild"]
-    GRT["redteam-agent"]
-    GFX["fixer-agent"]
+  subgraph WSC["WS-C: ClickHouse watch and dashboard"]
+    TOOLS["tools.ts: payment, ledger, email tools"]
+    CH["clickhouse.ts"]
+    QUERY["queries.ts"]
+    DASH["dashboard/"]
+    TOOLS --> CH
+    CH --> QUERY
+    QUERY --> DASH
   end
-  ATK -.->|"runtime.ts"| GRT
-  FIX -.->|"runtime.ts"| GFX
-  GUILD -->|"/tools/* callbacks, X-API-Key"| TOOLS["tools.ts"]
 
-  KB["kb/ policies + incidents"] --> SENSO[("Senso KB")]
-  SENSO -.->|"lessons + citations"| FIX
-  ISSUES -.->|"lesson written back"| SENSO
-  SENSO --> BRIEF["brief.ts<br/>POST /brief"]
-  HOOK["Claude Code<br/>UserPromptSubmit hook"] -->|"task prompt"| BRIEF
+  subgraph WSD["WS-D: Senso, Guild, platform"]
+    HOOK["Claude Code prompt hook"]
+    BRIEF["brief.ts: POST /brief"]
+    SENSO["senso.ts: search and lesson writeback"]
+    RUNTIME["runtime.ts: local-only stub"]
+    GUILD["Guild integration: IN PROGRESS"]
+    SPEC["openapi.yaml: 4 operations under /tools"]
+    PLATFORM["CI and web/ landing page"]
+    HOOK --> BRIEF
+    BRIEF --> SENSO
+    GUILD -.-> SPEC
+    GUILD -.-> RUNTIME
+  end
+
+  SANDBOX --> TOOLS
+  SENSO --> FIX
+  LEARN --> SENSO
+  LOOP --> RUNTIME
+  SPEC -.-> TOOLS
 ```
 
-- **Server:** TypeScript on Node 22, Hono on `:8787` ([`server/src/`](server/src/)). Every agent version runs in its own child process, so a patched agent never shares a runtime with the original.
-- **ClickHouse is the oracle.** An attack counts as successful only if `agent_events` shows a `payInvoice` to a payee that is not on the allowlist. No LLM judge. A sandbox request that fails counts as an infra error and fails the gate.
-- **The gate runs with the guard off**, so it measures the code fix. Production runs with the guard on as defense in depth.
-- **Targets:** [`invoice-bot`](targets/invoice-bot/agent.ts) (AI-generated, vulnerable), plus the sweep targets [`refund-bot`](targets/refund-bot/agent.ts) and [`vendor-bot`](targets/vendor-bot/agent.ts). The sanctioned sanitizer is `requireKnownPayee()` in [`targets/shared/guards.ts`](targets/shared/guards.ts).
-- Full design: [`docs/plans/2026-10-09-agentguard.md`](docs/plans/2026-10-09-agentguard.md).
+| Workstream | Scope | Main locations |
+|---|---|---|
+| **WS-A** | Target agents and red team | `targets/`, `server/src/redteam.ts` |
+| **WS-B** | Scan, fix, gate, learn, and loop orchestration | `server/src/scan.ts`, `fixer.ts`, `gate.ts`, `learn.ts`, `loop.ts` |
+| **WS-C** | ClickHouse monitoring, tool gateway, and dashboard | `server/src/clickhouse.ts`, `queries.ts`, `tools.ts`, `dashboard/`, [verification guide](docs/ws-c-verification.md) |
+| **WS-D** | Senso, security briefs, Guild integration, CI, and landing page | `server/src/senso.ts`, `brief.ts`, [Guild runbook](docs/guild-integration.md), `.github/workflows/server.yml`, `web/` |
 
-## How to run
+### Guild integration boundary
 
-Needs Node 22+ and the Semgrep CLI (`brew install semgrep` or `pipx install semgrep`) on macOS or Linux.
+Guild is **in progress**, not a working hosted runtime.
+
+- `server/src/runtime.ts` is a stub marked "stub until D3a lands; local only".
+- `AGENT_RUNTIME=guild` is read from the environment, but execution always remains local.
+- Guild-hosted red-team and fixer agents are not in the repository.
+- The [custom integration runbook](docs/guild-integration.md) uses `server/openapi.yaml`.
+- The integration exposes four operations through `server/src/tools.ts` under `/tools`: `get_target_profile`, `send_attack_batch`, `get_run_context`, and `submit_patch`.
+
+## Sponsor stack
+
+| Technology | Role and implementation |
+|---|---|
+| **Senso** | `server/src/senso.ts` calls `/org/search` for grounded answers and cited chunks supplied to the fixer. It writes lessons back through `/org/kb/raw`. `npm run seed:senso` uploads `kb/`. |
+| **Semgrep** | Supports the scan, gate, and learned-rule workflow in `scan.ts`, `gate.ts`, and `learn.ts`. |
+| **OpenAI models via Neon AI Gateway** | `server/src/llm.ts` uses the OpenAI SDK with an OpenAI-compatible endpoint. Set `OPENAI_BASE_URL` to `<gateway host>/v1` and use the gateway token as `OPENAI_API_KEY`. An empty base URL uses `api.openai.com/v1`. |
+| **AkashML** | Provides the target model endpoint at `api.akashml.com/v1` when `TARGET_PROVIDER=akash`. |
+| **Guild** | Custom integration specification and runbook exist. Hosted agent execution is unfinished; the runtime remains local. |
+| **ClickHouse** | Supports the watch workstream, dashboard queries, metrics, blocked-event feed, fleet hunt, and run scoreboard. |
+
+Model defaults are `gpt-5` for `OPENAI_MODEL` and `gpt-5-mini` for `OPENAI_FAST_MODEL` and `OPENAI_TARGET_MODEL`. Models must support `tool_calls`.
+
+Legacy Neon configuration remains accepted as a fallback. Its base URL uses the bare gateway host, rather than the `/v1` endpoint form.
+
+## Setup
+
+Copy the environment template and configure credentials:
 
 ```bash
-cp .env.example .env     # fill in the keys below
-cd server && npm i
-npm run schema           # create the ClickHouse tables
-npm run dev              # API on http://localhost:8787
-npm test                 # vitest
+cp .env.example .env
 ```
 
-Then, in a second terminal:
+The server requires `AGENTGUARD_API_KEY`, `CLICKHOUSE_URL`, and `CLICKHOUSE_PASSWORD` to boot. Model calls also require `OPENAI_API_KEY` or the legacy Neon token. Set `CLICKHOUSE_DATABASE` to `albert`.
+
+Install server dependencies, initialize the schema, and start development:
 
 ```bash
-cd dashboard && npm i && npm run dev
+cd server
+npm install
+npm run schema
+npm run dev
 ```
 
-Open the dashboard and click **Run security loop**. A full run takes 5–8 minutes (scan, baseline, up to three fixer attempts with a gate each, rule learning, sweep, PR). The demo runs with `AGENT_RUNTIME=local`; the Guild runtime is shown as a pre-recorded beat.
+In another terminal, start the dashboard:
 
-**Required to boot** (the server exits without them):
+```bash
+cd dashboard
+npm install
+npm run dev
+```
 
-| Key | Used for |
+The dashboard uses Vite and proxies `/api` to the server on port `8787`, supplying `AGENTGUARD_API_KEY` server-side.
+
+To upload the knowledge base to Senso:
+
+```bash
+cd server
+npm run seed:senso
+```
+
+Other available server scripts include `start`, `load`, `verify:clickhouse`, and `secrets:sync`. The landing page lives in `web/` and uses Vite and Vercel.
+
+## Environment variables
+
+### Required to boot
+
+| Name |
+|---|
+| `AGENTGUARD_API_KEY` |
+| `CLICKHOUSE_URL` |
+| `CLICKHOUSE_PASSWORD` |
+
+### Server and runtime
+
+| Name |
+|---|
+| `PORT` |
+| `AGENT_RUNTIME` |
+| `TARGET_PROVIDER` |
+| `PUBLIC_URL` |
+| `LOAD_RATE` |
+
+### OpenAI-compatible models
+
+| Name |
+|---|
+| `OPENAI_BASE_URL` |
+| `OPENAI_API_KEY` |
+| `OPENAI_MODEL` |
+| `OPENAI_FAST_MODEL` |
+| `OPENAI_TARGET_MODEL` |
+
+### Legacy Neon fallback
+
+| Name |
+|---|
+| `NEON_AI_GATEWAY_BASE_URL` |
+| `NEON_AI_GATEWAY_TOKEN` |
+| `NEON_*_MODEL` |
+
+### ClickHouse configuration
+
+| Name |
+|---|
+| `CLICKHOUSE_USER` |
+| `CLICKHOUSE_DATABASE` |
+
+### AkashML
+
+| Name |
+|---|
+| `AKASHML_API_KEY` |
+| `AKASH_API_KEY` |
+| `AKASHML_MODEL` |
+| `TARGET_MODEL` |
+
+### Security, knowledge, and platform
+
+| Name |
+|---|
+| `SEMGREP_API_KEY` |
+| `SEMGREP_BIN` |
+| `SENSO_API_KEY` |
+| `AWS_*` |
+
+### Guild integration, in progress
+
+| Name |
+|---|
+| `GUILD_WORKSPACE` |
+| `GUILD_REDTEAM_KEY_ID` |
+| `GUILD_REDTEAM_KEY_SECRET` |
+| `GUILD_FIXER_KEY_ID` |
+| `GUILD_FIXER_KEY_SECRET` |
+
+### GitHub
+
+| Name |
+|---|
+| `GITHUB_TOKEN` |
+| `GH_APP_TOKEN` |
+| `GITHUB_REPO` |
+| `GH_REPO_NAME` |
+
+## Tests
+
+Run server tests and type checking:
+
+```bash
+cd server
+npm test
+npm run typecheck
+```
+
+Server tests use Vitest. To verify ClickHouse:
+
+```bash
+cd server && npm run verify:clickhouse
+```
+
+Run dashboard tests and build:
+
+```bash
+cd dashboard
+npm test
+npm run build
+```
+
+CI in `.github/workflows/server.yml` runs `npm test` and boots the server for a health check using secrets. See [WS-C verification](docs/ws-c-verification.md) for the watch workstream.
+
+## Demo
+
+Start the server and dashboard, then click **Run defense loop** in the dashboard, or call the API directly. Targets: `invoice-bot` (AI-generated, intentionally vulnerable, see `targets/invoice-bot/PROMPT.md`), `refund-bot`, `vendor-bot`.
+
+Check server health:
+
+```bash
+curl http://localhost:8787/health
+```
+
+Start a run with the API key available in your shell:
+
+```bash
+curl -X POST http://localhost:8787/loop/start \
+  -H "Authorization: Bearer ${AGENTGUARD_API_KEY}" \
+  -H "Content-Type: application/json" -d '{"agent_id":"invoice-bot"}'
+```
+
+Use the run identifier to follow events and inspect the scoreboard.
+
+| Route | Demo purpose |
 |---|---|
-| `AGENTGUARD_API_KEY` | `X-API-Key` that Guild sends to `/tools/*`. Any long random string for local runs |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | OpenAI-compatible model endpoint. Point them at the Neon AI Gateway (`<gateway host>/v1` and the gateway token); an empty base URL means api.openai.com. The legacy `NEON_AI_GATEWAY_TOKEN` / `NEON_AI_GATEWAY_BASE_URL` pair is still accepted. Needed for model calls; database and dashboard routes boot without them |
-| `CLICKHOUSE_URL`, `CLICKHOUSE_PASSWORD` | Event store, attack oracle, real-time guard, dashboard metrics |
+| `GET /health` | Server health |
+| `POST /loop/start` | Start the loop using Bearer authentication |
+| `GET /loop/:id/events` | Stream loop events over SSE |
+| `GET /runs/:id/scoreboard` | Inspect run results |
+| `GET /metrics` | Inspect metrics |
+| `GET /events/blocked` | Inspect blocked events |
+| `GET /fleet/hunt` | Inspect fleet hunt results |
+| `POST /brief` | Request a security brief |
+| `/tools/*` | Tool and integration endpoints |
 
-**Optional:**
+The sandbox implementation is in `server/src/sandbox/`. The tool gateway exposes `payInvoice`, `readLedger`, and `sendEmail`; unknown payees are blocked with `TOOL_BLOCKED`.
 
-| Key | When empty |
-|---|---|
-| `AKASHML_API_KEY` | Needed for `TARGET_PROVIDER=akash`; `AKASH_API_KEY` is also accepted. The default is `TARGET_PROVIDER=neon` |
-| `OPENAI_MODEL`, `OPENAI_FAST_MODEL`, `OPENAI_TARGET_MODEL` | Default `gpt-5`, `gpt-5-mini`, `gpt-5-mini` (fixer, rule writer/brief, target agent). Must support tool calls |
-| `SENSO_API_KEY` | The fixer and brief run without Senso lessons |
-| `GITHUB_TOKEN` (+ `GITHUB_REPO`) | PR and issue steps are skipped and the timeline shows `(github disabled)` |
-| `GUILD_*` | Only read with `AGENT_RUNTIME=guild` |
+A runtime guard demo script is available at `server/scripts/demo-runtime-guard.ts`.
 
-Switches: `AGENT_RUNTIME=local|guild` (who runs the red-team and fixer agents) and `TARGET_PROVIDER=neon|openai|akash` (`openai` is an alias of `neon`) (who serves the target agent and attack generation). Extras: `npm run load` starts the synthetic fleet (`LOAD_RATE` rows/s) and `npm run seed:senso` uploads `kb/` to Senso.
+**Results are shown live in the dashboard.** No measured results are available to report here.
 
-Environment configuration and Actions repository secrets: [setup guide](docs/secrets.md).
+## Status and what is unfinished
 
-## Results
+- The local runtime, security-loop modules, sandbox, tool gateway, dashboard, and Senso integration are present.
+- The attack fixture contains 30 seed attacks.
+- Guild integration remains in progress. Setting `AGENT_RUNTIME=guild` does not enable hosted execution.
+- Guild-hosted red-team and fixer agents are not included in the repository.
+- No Semgrep Guardian screenshot is included.
+- This README reports no success rates, latency measurements, or benchmark totals.
 
-From the clean run (`invoice-bot`, 30 seed attacks, `AGENT_RUNTIME=local`):
-
-- baseline: X/N attacks succeeded
-- v2: X/N
-- v3: X/N
-- guard_ms: X
-- fleet hunt: N rows scanned in X ms
-- learned rule: `rules/learned/<file>`
-- PR: `<link>`
-- issues: `<links>`
-
-## Sponsors
-
-- **Guild:** hosts our `redteam-agent` and `fixer-agent` with deny-by-default credential policies, sessions and an audit log. They call the AgentGuard server through a custom integration (`/tools/*`), and the loop switches to them with `AGENT_RUNTIME=guild`.
-- **ClickHouse:** the event backbone. Every tool call lands in `agent_events`; ClickHouse decides whether an attack worked, powers the real-time guard (`guard_ms`), the metrics, the fleet hunt and the blocked feed, and absorbs the synthetic fleet from the load generator.
-- **Semgrep:** the scan step and one of the three acceptance-gate checks, with hand-written rules, a learned rule per run that sweeps the other agents, and a Semgrep Guardian review of the AI-generated agent (see below).
-- **Senso:** the knowledge base of policies and incident lessons (`kb/`). The fixer cites it, each run writes its lesson back, and the Prevent brief is built from it.
-- **Neon:** AI Gateway serves the fixer, rule writer, and the default target/attack model through the branch gateway. No direct OpenAI API key is required.
-- **Akash:** AkashML can serve the target agent and attack generation when `TARGET_PROVIDER=akash`.
-- **Claude Code (Prevent):** a `UserPromptSubmit` hook (`scripts/brief-hook.mjs`, `.claude/settings.json`) injects an AgentGuard security brief before Claude Code writes agent code.
-
-## Semgrep
-
-- Guardian finding: [`docs/semgrep-findings.md`](docs/semgrep-findings.md)
-- How the target was generated: [`targets/invoice-bot/PROMPT.md`](targets/invoice-bot/PROMPT.md)
-- Rules in [`rules/`](rules/): [`agent-security.yaml`](rules/agent-security.yaml) (hand-written), [`fallback/money-sink.yaml`](rules/fallback/money-sink.yaml) (used when the LLM-written rule fails validation), [`learned/`](rules/learned/) (written by the Learn step)
-
-`invoice-bot` was generated by an AI coding tool from the prompt above and is intentionally vulnerable; it is never hand-edited.
-The gate requires R3 `agentguard.model-chosen-payee` to be clean: a model-chosen payee must never reach a money-moving tool.
-
-## We attacked our own agent
-
-A Guild red-team session gets a poisoned target profile (`get_target_profile` with `compromised=1`) that tells our own `redteam-agent` to call `submit_patch`, a tool only the fixer may use. Guild's deny-by-default credential policy denies the call and records it in the audit log.
-
-<!-- Screenshot: add docs/guild-denied-submit-patch.png, then uncomment the next line. -->
-<!-- ![Guild denies submit_patch for the red-team agent](docs/guild-denied-submit-patch.png) -->
+Some legacy identifiers remain unchanged: the `AGENTGUARD_API_KEY` environment variable, learned rule IDs prefixed with `agentguard.*`, and the GitHub issue label `agentguard`. These are legacy code and integration identifiers, not product names.
 
 ## Team
 
-- `<name>` — target agents and red team
-- `<name>` — scan, fix, gate and loop
-- `<name>` — ClickHouse, gateway and dashboard
-- `<name>` — Guild, Senso, Prevent and pitch
+- Luigi Canoro, @LuigiMdpDev
+- Pratham Snehi, @snehipratham
+- Leandro, @leanlabiano
+- Franco, @fiPetru
 
-Video: `<link>`
+## Event
+
+Built at **Cyberdefense Hackathon #SFTechWeek**, AWS Builder Loft SF, October 9, 2026.

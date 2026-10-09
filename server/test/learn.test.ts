@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const root = mkdtempSync(join(tmpdir(), "agentguard-learn-"));
 const chat = vi.fn();
 const scan = vi.fn();
-vi.mock("../src/env", () => ({ ROOT: root, env: {} }));
+vi.mock("../src/env", async (orig) => ({ ...(await orig<any>()), ROOT: root }));
 vi.mock("../src/llm", async (orig) => ({ ...(await orig<any>()), chat: (...a: unknown[]) => chat(...a) }));
 vi.mock("../src/scan", () => ({ scan: (...a: unknown[]) => scan(...a) }));
 

@@ -1,4 +1,4 @@
-import { chat, extractFence, extractJson, MODELS, openai } from "./llm";
+import { chat, extractFence, extractJson, MODELS, neon } from "./llm";
 import type { Attack, Finding, Patch } from "./contracts";
 
 const FIXER_SYSTEM = `You fix security flaws in a TypeScript AI agent. Rules:
@@ -22,7 +22,7 @@ Return exactly two fenced blocks: first \`\`\`typescript with the full new file,
 export async function proposePatchLocal(input: {
   code: string; findings: Finding[]; failedAttacks: Attack[]; lessons: string;
 }): Promise<Patch> {
-  const out = await chat(openai, MODELS.reasoning, FIXER_SYSTEM, [
+  const out = await chat(neon, MODELS.reasoning, FIXER_SYSTEM, [
     "CURRENT FILE:\n" + input.code,
     "SEMGREP FINDINGS:\n" + JSON.stringify(input.findings.map(({ snippet, ...f }) => f)),
     "ATTACKS THAT STILL WORK:\n" + JSON.stringify(input.failedAttacks.slice(0, 5).map((a) => a.email)),

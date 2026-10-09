@@ -1,0 +1,73 @@
+name: Server checks
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+  configured-health:
+    # Repository secrets are only used for trusted code on the default branch
+    # or explicit dispatches, never for pull request code.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    env:
+      AGENTGUARD_API_KEY: ${{ secrets.AGENTGUARD_API_KEY }}
+      NEON_AI_GATEWAY_TOKEN: ${{ secrets.NEON_AI_GATEWAY_TOKEN }}
+      NEON_AI_GATEWAY_BASE_URL: ${{ secrets.NEON_AI_GATEWAY_BASE_URL }}
+      NEON_MODEL: ${{ secrets.NEON_MODEL }}
+      NEON_FAST_MODEL: ${{ secrets.NEON_FAST_MODEL }}
+      NEON_TARGET_MODEL: ${{ secrets.NEON_TARGET_MODEL }}
+      CLICKHOUSE_URL: ${{ secrets.CLICKHOUSE_URL }}
+      CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_USER }}
+      CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
+      CLICKHOUSE_DATABASE: ${{ secrets.CLICKHOUSE_DATABASE }}
+      TARGET_PROVIDER: neon
+      AGENT_RUNTIME: local
+      PORT: '8787'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Start with repository secrets and verify health
+        shell: bash
+        run: |
+          npm start > "$RUNNER_TEMP/agentguard-health.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:8787/health > "$RUNNER_TEMP/health.json"; then
+              node -e 'const fs = require("node:fs"); if (JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/health.json")).ok !== true) process.exit(1)'
+              echo 'Configured health: PASS'
+              exit 0
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo 'Server failed to start; verify required repository secret names.'
+              exit 1
+            fi
+            sleep 1
+          done
+          echo 'Server health timed out.'
+          exit 1

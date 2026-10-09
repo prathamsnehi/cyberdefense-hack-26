@@ -1,5 +1,6 @@
 // Test stub for server/src/llm.ts (WS-A, Task A2). Same exports; never calls a real model.
-export const openai = {} as any;
+export const neon = {} as any;
+export const openai = neon;
 export const akash = {} as any;
 export const target = {} as any;
 export const MODELS = { reasoning: "stub-reasoning", fast: "stub-fast", volume: "stub-volume", target: "stub-target" };

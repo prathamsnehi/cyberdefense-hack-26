@@ -5,3 +5,4 @@ node_modules/
 sponsor-service-credentials.md
 /sandbox/
 dist/
+.vercel/

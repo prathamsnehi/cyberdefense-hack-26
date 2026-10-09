@@ -4,29 +4,29 @@ import { env, requireNeonGateway } from "./env";
 // A hung model call must not freeze the demo: two minutes, one retry.
 const opts = { timeout: 120_000, maxRetries: 1 };
 
-// On WS-C's setup the "openai" client goes through the Neon AI gateway: env.ts maps the Neon token and host onto
-// OPENAI_API_KEY / OPENAI_BASE_URL. `|| "missing"` keeps the import from throwing when a key is empty; a real
-// call then fails with a clear 401.
-const neonClient = new OpenAI({ apiKey: env.OPENAI_API_KEY || "missing",
-  baseURL: env.OPENAI_BASE_URL || 'https://neon-gateway-unconfigured.invalid/v1', ...opts });
-// Preserve the shared export, while failing before any request if Neon is not configured.
-// An absent Neon host must never fall back to a direct provider endpoint.
-export const openai = new Proxy(neonClient, { get(client, key, receiver) {
+const neonClient = new OpenAI({
+  apiKey: env.NEON_AI_GATEWAY_TOKEN || "missing",
+  baseURL: env.OPENAI_BASE_URL || "https://neon-gateway-unconfigured.invalid/v1",
+  ...opts,
+});
+export const neon = new Proxy(neonClient, { get(client, key, receiver) {
   if (key === 'chat') requireNeonGateway();
   return Reflect.get(client, key, receiver);
 } });
-// AkashML speaks the OpenAI API.
+// Compatibility for workstreams that still import this name; it always routes through Neon.
+export const openai = neon;
+// Akash is optional; env.ts requires its key only when TARGET_PROVIDER=akash.
 export const akash = new OpenAI({ apiKey: env.AKASHML_API_KEY || "missing", baseURL: "https://api.akashml.com/v1", ...opts });
 
 const onAkash = env.TARGET_PROVIDER === "akash";
 // The vulnerable demo agent (and attack generation) run on this client.
-export const target = onAkash ? akash : openai;
+export const target = onAkash ? akash : neon;
 
 export const MODELS = {
-  reasoning: env.OPENAI_MODEL,
-  fast: env.OPENAI_FAST_MODEL,
-  volume: onAkash ? env.AKASHML_MODEL : env.OPENAI_TARGET_MODEL,
-  target: onAkash ? env.TARGET_MODEL : env.OPENAI_TARGET_MODEL,
+  reasoning: env.NEON_MODEL,
+  fast: env.NEON_FAST_MODEL,
+  volume: onAkash ? env.AKASHML_MODEL : env.NEON_TARGET_MODEL,
+  target: onAkash ? env.TARGET_MODEL : env.NEON_TARGET_MODEL,
 };
 
 export async function chat(client: OpenAI, model: string, system: string, user: string,

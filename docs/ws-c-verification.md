@@ -15,6 +15,8 @@ Branch: `codex/ws-c-active`. Execution environment: the existing private Codespa
 
 At source revision `2144ad2`: server **98 tests / 20 files passed**, including real Semgrep integration; full server `npm run typecheck` passed. Dashboard **21 tests / 2 files passed**; dashboard typecheck and production build passed. The runtime demonstration script added at `d693110` also passed full server typecheck and its live assertions.
 
+Final dashboard revision `e9cb201`: **22 tests passed**, typecheck and production build passed. Terminal runs now show unreported baseline validation fields as unavailable rather than continuing to say pending/evaluating. Browser hot refresh retained the completed second run and displayed this correction.
+
 No lint script is configured for the server or dashboard. No installation, test, build, or service execution was performed on the personal Mac.
 
 Live ClickHouse proof (`npm run verify:clickhouse`):

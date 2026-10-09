@@ -27,54 +27,52 @@ const beats: Beat[] = [
   {
     time: "0:00",
     title: "Break it",
-    summary:
-      "AI builds an invoice assistant that pays invoices from email. A malicious email makes it pay.",
+    summary: "Bad email. It pays. The invoice assistant reads one bad email as orders and sends the money.",
     status: { label: "Compromised", variant: "destructive" },
     lines: [
       { tag: "build", text: "invoice assistant: pays invoices from email", tone: "muted" },
-      { tag: "inbox", text: "inbound email: untrusted text from anyone", tone: "default" },
-      { tag: "agent", text: "reads the email as instructions", tone: "default" },
-      { tag: "pay", text: "payments tool sends money on request", tone: "danger" },
-      { tag: "result", text: "the attacker writes the instructions, the agent pays", tone: "danger" },
+      { tag: "inbox", text: "inbound email: anyone can write it", tone: "default" },
+      { tag: "agent", text: "reads the email as orders", tone: "default" },
+      { tag: "pay", text: "payments tool sends the money", tone: "danger" },
+      { tag: "result", text: "one bad email, the agent pays", tone: "danger" },
     ],
   },
   {
-    time: "0:40",
+    time: "0:08",
     title: "Prove the fix",
-    summary:
-      "Albert flags the flaw and proposes a fix. 50 attack variants, 3 still work: rejected. Second fix, 0 work: accepted.",
+    summary: "Fix 1: 3/50 land. Out. Fix 2: 0/50. Accepted.",
     status: { label: "Accepted", variant: "default" },
     lines: [
-      { tag: "albert", text: "flaw flagged: email text reaches a payment tool", tone: "accent" },
-      { tag: "fix 1", text: "fix proposed, attacked in isolation", tone: "default" },
-      { tag: "attack", text: "50 attack variants, 3 still work: rejected", tone: "danger" },
-      { tag: "fix 2", text: "second fix proposed, attacked again", tone: "default" },
-      { tag: "attack", text: "0 work: accepted", tone: "accent" },
+      { tag: "albert", text: "fix proposed, attacked in Guild", tone: "accent" },
+      { tag: "fix 1", text: "3/50 attacks land", tone: "danger" },
+      { tag: "result", text: "fix 1 is out", tone: "danger" },
+      { tag: "fix 2", text: "0/50 attacks land", tone: "default" },
+      { tag: "result", text: "fix 2 accepted", tone: "accent" },
     ],
   },
   {
-    time: "1:40",
+    time: "0:18",
     title: "Learn",
-    summary: "The new rule sweeps the codebase and finds the same flaw in another agent.",
+    summary: "New rule finds the same bug in another agent.",
     status: { label: "Rule added", variant: "default" },
     lines: [
-      { tag: "rule", text: "successful attack becomes a new rule", tone: "accent" },
-      { tag: "sweep", text: "rule runs across every agent in the codebase", tone: "default" },
-      { tag: "match", text: "same flaw found in another agent", tone: "danger" },
-      { tag: "brief", text: "rule added to the brief for the next build", tone: "accent" },
+      { tag: "rule", text: "the attack that worked becomes a new rule", tone: "accent" },
+      { tag: "sweep", text: "rule swept org-wide with Semgrep", tone: "default" },
+      { tag: "match", text: "same bug found in another agent", tone: "danger" },
+      { tag: "brief", text: "rule goes back into the brief for the next build", tone: "accent" },
     ],
   },
   {
-    time: "2:20",
+    time: "0:24",
     title: "Watch",
-    summary: "A real attack attempt is blocked live on the ClickHouse dashboard.",
+    summary: "Live attack blocked in ClickHouse.",
     status: { label: "Blocked", variant: "default" },
     lines: [
-      { tag: "event", text: "external email received by the agent", tone: "default" },
-      { tag: "event", text: "payment requested to a new account", tone: "default" },
-      { tag: "detect", text: "live detection on the ClickHouse dashboard", tone: "accent" },
-      { tag: "action", text: "payment blocked and alerted", tone: "accent" },
-      { tag: "guild", text: "agent under attack isolated", tone: "muted" },
+      { tag: "event", text: "inbound email received by the agent", tone: "default" },
+      { tag: "event", text: "payment requested by the email", tone: "default" },
+      { tag: "log", text: "every agent action logged in ClickHouse", tone: "muted" },
+      { tag: "detect", text: "live detection fires in ClickHouse", tone: "accent" },
+      { tag: "action", text: "live attack blocked", tone: "accent" },
     ],
   },
 ];
@@ -129,8 +127,8 @@ export function Demo() {
           eyebrow="Demo"
           index="04"
           headingId="demo-title"
-          title="An invoice assistant, attacked and fixed"
-          lede="Four beats, under three minutes. Pick a moment to see what happens."
+          title="Demo, 30 sec"
+          lede="Invoice assistant. One bad email. It pays. Then Albert AI proves a fix, learns a rule and blocks the live attack. Pick a moment to see what happens."
         />
 
         <div ref={revealRef} className="reveal mt-16 grid gap-6 lg:grid-cols-[18rem_1fr]">

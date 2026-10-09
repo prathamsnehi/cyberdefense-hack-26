@@ -91,7 +91,10 @@ export function Footer() {
           <div className="flex flex-col gap-4">
             <Logo variant="lockup" size="md" href="#top" />
             <p className="max-w-prose text-small text-pretty text-fg-secondary">
-              Every successful attack makes the next build safer.
+              Every hit makes the next build safer.
+            </p>
+            <p className="text-small text-fg-muted">
+              Luigi Canoro | Pratham Snehi | Leandro | Franco
             </p>
           </div>
           <a
@@ -110,7 +113,7 @@ export function Footer() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
             <Logo variant="eyebrow" />
             <p className="flex flex-wrap gap-x-3 gap-y-1">
-              <span>Cyberdefense Hackathon #SFTechWeek by {"tokens&"}</span>
+              <span>Cyberdefense Hackathon #SFTechWeek</span>
               <span aria-hidden="true">|</span>
               <span>AWS Builder Loft SF</span>
               <span aria-hidden="true">|</span>

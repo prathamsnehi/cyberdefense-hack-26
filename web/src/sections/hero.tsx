@@ -160,15 +160,16 @@ export function Hero() {
           className="anim-fade-up max-w-5xl font-display text-display-lg font-bold uppercase text-balance text-foreground"
           style={{ animationDelay: "200ms" }}
         >
-          One malicious email can take control of an AI agent
+          One bad email can take over your agent.
         </h1>
 
         <p
           className="anim-fade-up max-w-prose text-lede text-pretty text-fg-secondary"
           style={{ animationDelay: "260ms" }}
         >
-          with access to email, code and money.{" "}
-          <span className="font-medium text-foreground">Albert AI closes the loop.</span>
+          Companies are handing AI agents their email, their code and their money. That is
+          useful. It also means a single email can steer what the agent does.{" "}
+          <span className="font-medium text-foreground">We close the loop.</span>
         </p>
 
         <div className="anim-fade-up" style={{ animationDelay: "320ms" }}>

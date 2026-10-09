@@ -153,7 +153,7 @@ describe('Albert AI dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === '/api/fleet/hunt?agent=agent-7+%26+branch')).toBe(true));
     expect(await screen.findByText('103 rows scanned · 6.7 ms')).toBeInTheDocument();
-    expect(screen.getByText('No database matches found.')).toBeInTheDocument();
+    expect(screen.getByText('No suspicious payment events found.')).toBeInTheDocument();
   });
 
   it('does not invent statistics when a fleet query omits them', async () => {

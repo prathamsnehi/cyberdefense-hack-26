@@ -270,7 +270,7 @@ describe('SSE reconnect lifecycle', () => {
   it('isolates two runs, reuses IDs safely, and clears the first run reconnect timer on done', async () => {
     vi.useFakeTimers();
     let nextRun = 0;
-    fetchMock.mockImplementation(async () => response({ run_id: `run-${++nextRun}` }));
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/loop/start' ? { run_id: `run-${++nextRun}` } : { run_id: null }));
     const hook = renderHook(() => useDefenseRun());
     await act(async () => { await hook.result.current.start(); });
     const first = MockEventSource.instances[0];
@@ -281,7 +281,7 @@ describe('SSE reconnect lifecycle', () => {
     });
     expect(hook.result.current.error).toBeUndefined();
     expect(hook.result.current.busy).toBe(false);
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1); // Active-run discovery continues polling; the reconnect timer is gone.
     await act(async () => { await hook.result.current.start(); });
     const second = MockEventSource.instances[1];
     expect(hook.result.current.runId).toBe('run-2');
@@ -311,9 +311,9 @@ describe('SSE reconnect lifecycle', () => {
     await act(async () => { await hook.result.current.start(); });
     const source = MockEventSource.instances[0];
     act(() => source.disconnect());
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(2); // Discovery poll plus reconnect grace period.
     act(() => source.disconnect(true));
-    expect(vi.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(1); // Only the discovery poll remains.
     expect(hook.result.current.busy).toBe(false);
     expect(hook.result.current.error).toContain('unavailable for this run');
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
@@ -327,7 +327,7 @@ describe('SSE reconnect lifecycle', () => {
     await act(async () => { await hook.result.current.start(); });
     const source = MockEventSource.instances[0];
     act(() => source.disconnect());
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(2); // Discovery poll plus reconnect grace period.
     hook.unmount();
     expect(vi.getTimerCount()).toBe(0);
     expect(source.close).toHaveBeenCalledOnce();

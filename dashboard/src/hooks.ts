@@ -62,12 +62,23 @@ export function useDefenseRun() {
   const controller = useRef<AbortController | undefined>(undefined);
   const generation = useRef(0);
   const seen = useRef(new Set<string>());
-  useEffect(() => () => { generation.current++; source.current?.close(); controller.current?.abort(); }, []);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearReconnectTimer = useCallback(() => {
+    clearTimeout(reconnectTimer.current);
+    reconnectTimer.current = undefined;
+  }, []);
+  useEffect(() => () => {
+    generation.current++;
+    clearReconnectTimer();
+    source.current?.close();
+    controller.current?.abort();
+  }, [clearReconnectTimer]);
 
   const start = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
     const current = ++generation.current;
+    clearReconnectTimer();
     source.current?.close();
     seen.current = new Set();
     setState(initialEventState());
@@ -86,6 +97,19 @@ export function useDefenseRun() {
       setStatus('running');
       const events = new EventSource(`/api/loop/${encodeURIComponent(id)}/events`);
       source.current = events;
+      const unavailable = (message: string) => {
+        if (generation.current !== current || !busy.current) return;
+        clearReconnectTimer();
+        events.close();
+        busy.current = false;
+        setStatus('error');
+        setError(message);
+      };
+      events.onopen = () => {
+        if (generation.current !== current || !busy.current) return;
+        clearReconnectTimer();
+        setError(undefined);
+      };
       events.onmessage = (message) => {
         if (generation.current !== current || !busy.current) return;
         const event = parseRunEvent(message.lastEventId, message.data, id);
@@ -93,25 +117,35 @@ export function useDefenseRun() {
         seen.current.add(event.id);
         setState((previous) => addRunEvent(previous, event));
         if (event.step === 'done' || event.step === 'error') {
+          clearReconnectTimer();
           events.close();
           busy.current = false;
           setStatus(event.step);
-          if (event.step === 'error') setError(typeof event.data.message === 'string' ? event.data.message : 'The defense loop reported an error.');
+          setError(event.step === 'error' ? (typeof event.data.message === 'string' ? event.data.message : 'The defense loop reported an error.') : undefined);
         }
       };
       events.onerror = () => {
         if (generation.current !== current || !busy.current) return;
-        events.close();
-        busy.current = false;
-        setStatus('error');
-        setError('The live event connection was interrupted. Start a new run to reconnect.');
+        if (events.readyState === EventSource.CLOSED) {
+          unavailable('The live event stream is unavailable for this run. Start a new run to retry.');
+          return;
+        }
+        // Keep this EventSource alive so the browser reconnects with Last-Event-ID.
+        // Repeated failures share one grace period and never retry the start POST.
+        setError('Live event stream interrupted. Reconnecting to the current run…');
+        if (reconnectTimer.current === undefined) {
+          reconnectTimer.current = setTimeout(() => {
+            unavailable('The live event stream is unavailable after 30 seconds of reconnecting. Start a new run to retry.');
+          }, 30_000);
+        }
       };
     } catch (cause) {
       if (generation.current !== current) return;
+      clearReconnectTimer();
       busy.current = false;
       setStatus('error');
       setError(errorMessage(cause));
     }
-  }, []);
+  }, [clearReconnectTimer]);
   return { ...state, status, error, runId, start, busy: status === 'starting' || status === 'running' };
 }

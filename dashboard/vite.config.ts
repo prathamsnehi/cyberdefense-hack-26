@@ -9,16 +9,23 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, fileURLToPath(new URL('..', import.meta.url)), '');
   const headers = env.AGENTGUARD_API_KEY ? { Authorization: `Bearer ${env.AGENTGUARD_API_KEY}` } : undefined;
   return {
-  plugins: [react(), tailwindcss()],
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: true, headers, rewrite: (path) => path.replace(/^\/api/, '') } },
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    clearMocks: true,
-  },
+    plugins: [react(), tailwindcss()],
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          headers,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+      },
+    },
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./src/test/setup.ts'],
+      clearMocks: true,
+    },
   };
 });

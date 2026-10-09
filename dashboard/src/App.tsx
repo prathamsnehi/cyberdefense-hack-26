@@ -43,8 +43,7 @@ function MetricCard({ label, value, unit, detail, loading, icon }: { label: stri
 
 function EvaluationRow({ result }: { result: Evaluation }) {
   const known = result.total !== undefined && result.succeeded !== undefined && result.infraErrors !== undefined;
-  const blocked = known ? Math.max(0, result.total! - result.succeeded! - result.infraErrors!) : undefined;
-  const percent = blocked !== undefined && result.total! > 0 ? Math.min(100, blocked / result.total! * 100) : undefined;
+  const percent = known && result.total! > 0 ? Math.min(100, result.succeeded! / result.total! * 100) : undefined;
   return <tr><td><span className="version-tag">{result.version}</span></td><td>{formatNumber(result.total)}</td><td className={result.succeeded ? 'text-red' : ''}>{formatNumber(result.succeeded)}</td><td>{formatNumber(result.infraErrors)}</td><td>{result.happyPath === undefined ? <span className="muted">{result.final ? 'Unavailable' : 'Pending'}</span> : <span className={result.happyPath ? 'text-green' : 'text-red'}>{result.happyPath ? 'Pass' : 'Fail'}</span>}</td><td>{result.accepted === undefined ? <span className="pill neutral">{result.final ? 'Unavailable' : 'Evaluating'}</span> : <span className={`pill ${result.accepted ? 'green' : 'red'}`}>{result.accepted ? 'Accepted' : 'Rejected'}</span>}{percent !== undefined && <span className="mini-progress" aria-label={`${Math.round(percent)} percent of attacks blocked`}><span style={{ width: `${percent}%` }} /></span>}</td></tr>;
 }
 

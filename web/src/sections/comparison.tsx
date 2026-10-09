@@ -14,12 +14,12 @@ interface Row {
 }
 
 const rows: Row[] = [
-  { label: "Prevent", values: [null, "partial", null, "yes"] },
-  { label: "Detect", values: ["partial", "yes", null, "yes"] },
-  { label: "Prove", values: ["yes", null, null, "yes"] },
-  { label: "Learn", values: ["partial", "partial", null, "yes"] },
-  { label: "Watch", values: ["partial", null, "yes", "yes"] },
-  { label: "Attack results feed rules and the brief", values: [null, null, null, "yes"] },
+  { label: "Brief before code", values: [null, "partial", null, "yes"] },
+  { label: "Rules while it writes", values: ["partial", "yes", null, "yes"] },
+  { label: "Attack every fix", values: ["yes", null, null, "yes"] },
+  { label: "Attack becomes a rule", values: ["partial", "partial", null, "yes"] },
+  { label: "Live detection", values: ["partial", null, "yes", "yes"] },
+  { label: "Each step feeds the next", values: [null, null, null, "yes"] },
 ];
 
 function Cell({ mark, highlight }: { mark: Mark; highlight: boolean }) {
@@ -66,8 +66,8 @@ export function Comparison() {
           eyebrow="Comparison"
           index="05"
           headingId="compare-title"
-          title="Separate tools, one loop"
-          lede="Existing tools attack, scan, or monitor separately. Albert AI closes the loop."
+          title="Pieces vs. a loop"
+          lede="Attack tools, scanners and monitors are good at their piece, and they run separately. Albert AI wires it all into one loop."
         />
 
         <div
@@ -79,7 +79,7 @@ export function Comparison() {
         >
           <table className="w-full min-w-[40rem] border-collapse text-left text-small">
             <caption className="caption-bottom border-t border-hairline px-4 py-4 text-left text-caption text-fg-muted">
-              Columns show each tool category's main focus; some vendors span two.
+              Columns show each category's main focus. Some vendors span two.
             </caption>
             <thead>
               <tr className="border-b border-hairline">

@@ -16,35 +16,35 @@ const steps: Step[] = [
     name: "Prevent",
     stack: ["Senso"],
     description:
-      "Before code is written, the coding agent gets a brief: untrusted inputs, minimum permissions, guards to include. Verified sources from Senso.",
+      "Verified-source brief. Senso gives the brief verified sources before the coding agent writes any code.",
   },
   {
     index: "02",
     name: "Detect",
-    stack: ["Semgrep"],
+    stack: ["Semgrep Guardian"],
     description:
-      "Semgrep Guardian runs in the coding agent, plus custom rules for agent flaws, like email text reaching a payment tool.",
+      "Plus custom agent rules. Semgrep Guardian runs in the coding agent with our own rules for agent bugs.",
   },
   {
     index: "03",
     name: "Prove",
     stack: ["OpenAI", "AkashML"],
     description:
-      "An automated attacker hits the agent running isolated in Guild. Open models on AkashML add volume.",
+      "Attacks run in Guild. OpenAI plus open models on AkashML do the attacking, inside Guild so nothing leaks.",
   },
   {
     index: "04",
     name: "Learn",
     stack: ["Semgrep"],
     description:
-      "Each successful attack becomes a new rule, swept across every agent in the org and added to the brief.",
+      "New rule, swept org-wide. Every attack that worked becomes a Semgrep rule and goes back into the brief.",
   },
   {
     index: "05",
     name: "Watch",
     stack: ["ClickHouse"],
     description:
-      "Every agent action is logged with live detections. External email, then a payment to a new account: blocked and alerted. Guild isolates the agent under attack.",
+      "Live detections. ClickHouse logs every agent action and fires the live alerts.",
   },
 ];
 
@@ -87,8 +87,8 @@ export function HowItWorks() {
           eyebrow="How it works"
           index="03"
           headingId="how-title"
-          title="Five steps, one stack"
-          lede="Each step has one job and one owner in the stack. Together they close the loop from the brief to the live dashboard."
+          title="What runs where"
+          lede="Every hit goes back into the brief. Each step has one job and one owner in the Albert AI stack."
         />
 
         <div
@@ -97,7 +97,7 @@ export function HowItWorks() {
         >
           <span>Step</span>
           <span>Stack</span>
-          <span>What happens</span>
+          <span>What it does</span>
         </div>
         <ol className="mt-10 border-b border-hairline md:mt-0">
           {steps.map((step, i) => (
@@ -109,26 +109,24 @@ export function HowItWorks() {
           <Card>
             <CardHeader>
               <CardTitle>Isolated by Guild</CardTitle>
-              <CardDescription>Attacks run where they cannot spread.</CardDescription>
+              <CardDescription>Attacks run where nothing leaks.</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-small text-fg-secondary">
-                In step 03 the automated attacker hits the agent running isolated in Guild. In
-                step 05, Guild isolates the agent under attack, so one compromised agent does not
-                reach the others.
+                In step 03, OpenAI plus open models on AkashML attack every fix inside Guild, so
+                nothing leaks. If any attack still works, the fix is out.
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
               <CardTitle>04 feeds 01</CardTitle>
-              <CardDescription>Every successful attack makes the next build safer.</CardDescription>
+              <CardDescription>Every hit makes the next build safer.</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-small text-fg-secondary">
-                Each successful attack in step 04 becomes a new rule. That rule is swept across
-                every agent in the org and added to the step 01 brief the coding agent reads
-                before it writes code.
+                Every attack that works in step 04 becomes a new rule. It is swept org-wide and
+                goes back into the step 01 brief, so the next agent starts out knowing about it.
               </p>
             </CardContent>
           </Card>

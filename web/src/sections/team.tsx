@@ -9,9 +9,10 @@ interface Member {
 }
 
 const members: Member[] = [
-  { name: "Luigi Canoro", initials: "LC" },
-  { name: "Pratham Snehi", initials: "PS" },
-  { name: "Leandro", initials: "L", handle: "@leandrodenos" },
+  { name: "Luigi Canoro", initials: "LC", handle: "@LuigiMdpDev" },
+  { name: "Pratham Snehi", initials: "PS", handle: "@snehipratham" },
+  { name: "Leandro", initials: "L", handle: "@leanlabiano" },
+  { name: "Franco", initials: "F", handle: "@fiPetru" },
 ];
 
 function MemberCard({ member, order }: { member: Member; order: number }) {
@@ -47,7 +48,7 @@ export function Team() {
     <section id="team" aria-labelledby="team-title" className="border-t border-hairline py-section">
       <div className="mx-auto max-w-page px-gutter">
         <SectionHeader eyebrow="Team" index="06" headingId="team-title" title="Built by" />
-        <ul className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {members.map((member, i) => (
             <MemberCard key={member.name} member={member} order={i} />
           ))}

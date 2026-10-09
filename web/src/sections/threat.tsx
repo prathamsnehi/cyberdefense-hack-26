@@ -37,17 +37,17 @@ interface ChainNode {
 }
 
 const chain: ChainNode[] = [
-  { label: "Inbound email", detail: "Untrusted text from anyone", icon: Mail, beat: "a" },
+  { label: "Inbound email", detail: "Anyone can write it", icon: Mail, beat: "a" },
   {
     label: "AI agent",
-    detail: "Reads it as instructions",
+    detail: "Reads it as orders",
     icon: Bot,
     beat: "b",
     emphasis: true,
   },
   {
-    label: "Payments tool",
-    detail: "Sends money on request",
+    label: "Payments",
+    detail: "Sends the money",
     icon: Banknote,
     beat: "c",
     paid: true,
@@ -57,18 +57,18 @@ const chain: ChainNode[] = [
 const flaws = [
   {
     index: "01",
-    title: "Untrusted input steers it",
-    description: "An inbound email becomes a command.",
+    title: "Email read as orders",
+    description: "The agent treats the text of an email like instructions, so it pays whoever wrote it.",
   },
   {
     index: "02",
-    title: "Over-permissioned agents",
-    description: "More access than the task needs.",
+    title: "Too many permissions",
+    description: "These agents usually have way more permissions than the job needs.",
   },
   {
     index: "03",
-    title: "Agents sharing a runtime",
-    description: "One compromised agent reaches the others.",
+    title: "A shared runtime",
+    description: "Many agents share a runtime. Break one, you can reach the others.",
   },
 ] as const;
 
@@ -178,8 +178,8 @@ export function Threat() {
             eyebrow="The threat"
             index="01"
             headingId="threat-title"
-            title="The attacker writes the instructions"
-            lede="AI agents read untrusted text and act on it with real access to email, code and money."
+            title="One email. Agent pays."
+            lede="Agents now read email, push code and move money. They get too many permissions. They share a runtime."
           />
         </Reveal>
 
@@ -243,8 +243,8 @@ export function Threat() {
               })}
             </div>
             <figcaption className="max-w-prose text-body text-fg-secondary">
-              <span className="font-medium text-foreground">Prompt injection:</span> the attacker
-              writes the instructions, the agent pays.
+              <span className="font-medium text-foreground">Prompt injection:</span> the agent
+              reads an email, treats the text like instructions and pays whoever wrote it.
             </figcaption>
           </figure>
         </Reveal>
@@ -254,7 +254,7 @@ export function Threat() {
             <div className="flex items-center gap-3">
               <span aria-hidden="true" className="h-px w-6 bg-accent-brand" />
               <h3 className="font-sans text-eyebrow font-medium uppercase tracking-eyebrow text-muted-foreground">
-                New flaw kinds
+                Why it works
               </h3>
             </div>
           </Reveal>

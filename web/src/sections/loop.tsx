@@ -28,32 +28,33 @@ const steps = [
   {
     index: "01",
     name: "Prevent",
-    stack: "Senso",
-    description: "Before code is written, the coding agent gets a brief from verified sources.",
+    stack: "Brief before code",
+    description:
+      "Before any code is written, the coding agent gets a security brief: what is untrusted, which permissions it needs, which guards to add.",
   },
   {
     index: "02",
     name: "Detect",
-    stack: "Semgrep",
-    description: "Semgrep Guardian runs in the coding agent, plus custom rules for agent flaws.",
+    stack: "Semgrep as it writes",
+    description: "While the coding agent writes, Semgrep catches agent flaws.",
   },
   {
     index: "03",
     name: "Prove",
-    stack: "OpenAI + AkashML",
-    description: "An automated attacker hits the agent running isolated in Guild.",
+    stack: "Attack every fix",
+    description: "Before a fix goes in, we attack it. If any attack still works, the fix is out.",
   },
   {
     index: "04",
     name: "Learn",
-    stack: "Semgrep",
-    description: "Each successful attack becomes a new rule, swept across every agent.",
+    stack: "Hits become rules",
+    description: "Every attack that worked becomes a rule.",
   },
   {
     index: "05",
     name: "Watch",
-    stack: "ClickHouse",
-    description: "Every agent action is logged with live detections.",
+    stack: "Live in prod",
+    description: "In production, we watch every agent action.",
   },
 ] as const;
 
@@ -253,8 +254,8 @@ export function Loop() {
             eyebrow="The loop"
             index="02"
             headingId="loop-title"
-            title="Every successful attack makes the next build safer."
-            lede="Prevent, detect, prove, learn, watch. Five stages that feed each other."
+            title="Every hit makes the next build safer."
+            lede="Prevent, detect, prove, learn, watch. Each step feeds the next, and Albert AI closes the loop."
           />
         </Reveal>
 
@@ -381,7 +382,7 @@ export function Loop() {
               <RotateCcw className="size-4" />
             </span>
             <p className="text-body text-fg-secondary">
-              Each successful attack in{" "}
+              Every hit in{" "}
               <span className="font-display font-semibold tabular-nums text-accent-brand">04</span>{" "}
               goes back into the{" "}
               <span className="font-display font-semibold tabular-nums text-accent-brand">01</span>{" "}

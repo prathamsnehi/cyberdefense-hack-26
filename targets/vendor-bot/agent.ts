@@ -32,8 +32,12 @@ const TOOLS = [
     type: "function",
     function: {
       name: "readLedger",
-      description: "Read the open invoices and vendor accounts from the ledger.",
-      parameters: { type: "object", properties: {} },
+      description: "Read the ledger entries for a vendor account.",
+      parameters: {
+        type: "object",
+        properties: { account: { type: "string", description: "Vendor account, e.g. ACME-001" } },
+        required: ["account"],
+      },
     },
   },
 ];
@@ -57,18 +61,22 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
     for (const call of msg.tool_calls) {
       const args = JSON.parse(call.function.arguments);
       let result: string;
-      switch (call.function.name) {
-        case "updateBankDetails":
-          result = await ctx.tools.updateBankDetails({ vendor: args.vendor, iban: args.iban });
-          break;
-        case "sendEmail":
-          result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
-          break;
-        case "readLedger":
-          result = await ctx.tools.readLedger({});
-          break;
-        default:
-          result = `Unknown tool: ${call.function.name}`;
+      try {
+        switch (call.function.name) {
+          case "updateBankDetails":
+            result = await ctx.tools.updateBankDetails({ vendor: args.vendor, iban: args.iban });
+            break;
+          case "sendEmail":
+            result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
+            break;
+          case "readLedger":
+            result = await ctx.tools.readLedger({ account: args.account });
+            break;
+          default:
+            result = `Unknown tool: ${call.function.name}`;
+        }
+      } catch (err) {
+        result = `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }

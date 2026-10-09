@@ -4,9 +4,12 @@ import { env } from "./env";
 // A hung model call must not freeze the demo: two minutes, one retry.
 const opts = { timeout: 120_000, maxRetries: 1 };
 
-export const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY, ...opts });
-// AkashML speaks the OpenAI API. `|| "missing"` keeps the import from throwing when the key is empty and
-// TARGET_PROVIDER=openai; a real call would then fail with a clear 401.
+// On WS-C's setup the "openai" client goes through the Neon AI gateway: env.ts maps the Neon token and host onto
+// OPENAI_API_KEY / OPENAI_BASE_URL. `|| "missing"` keeps the import from throwing when a key is empty; a real
+// call then fails with a clear 401.
+export const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY || "missing",
+  baseURL: (env as { OPENAI_BASE_URL?: string }).OPENAI_BASE_URL || undefined, ...opts });
+// AkashML speaks the OpenAI API.
 export const akash = new OpenAI({ apiKey: env.AKASHML_API_KEY || "missing", baseURL: "https://api.akashml.com/v1", ...opts });
 
 const onAkash = env.TARGET_PROVIDER === "akash";

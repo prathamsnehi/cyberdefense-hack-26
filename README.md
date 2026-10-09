@@ -1,5 +1,7 @@
 # AgentGuard
 
+Landing page: [Albert AI](https://albert-ai-nine.vercel.app)
+
 **A closed security loop for AI agents that move money: it scans, attacks, fixes, proves, learns and watches.**
 
 AI agents that read email and call payment tools can be talked into paying an attacker by one well-written email. AgentGuard scans the agent with Semgrep, replays attacks against it in a sandbox, has an LLM write a patch and accepts that patch only when no attack works and legitimate invoices still get paid. It then turns the flaw into a new Semgrep rule, sweeps the rest of the fleet, opens the PR and issues, and blocks the same attack in real time.

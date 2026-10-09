@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { ch, insertEvents, timedQuery } from '../src/clickhouse';
 import { createToolGateway, ToolBlockedError } from '../src/tools';
-import { metrics, fleetHunt } from '../src/queries';
+import { metrics, fleetHunt, logicalEventCount } from '../src/queries';
 
 // Run only in Codespaces with private credentials. This adds labelled sandbox evidence;
 // it never removes the existing table or its rows and never calls a payment provider.
@@ -24,7 +24,7 @@ try {
 
   const runs: string[] = [];
   for (let n = 0; n < 2; n++) {
-    const run_id = `ws-c-ledger-verification-${randomUUID()}`;
+    const run_id = `setup-smoke-ws-c-ledger-${randomUUID()}`;
     runs.push(run_id);
     const context = { run_id, agent_id: 'invoice-bot', version: 'v1', session_id: `ledger-check-${n}`,
       attack_id: 'gateway-unknown-destination-check', source: 'external' as const, guard: true };
@@ -45,13 +45,16 @@ try {
     assert.equal(rows.filter(r => r.guard_ms === null).length, 1);
     // Duplicate physical audit rows cannot inflate logical dashboard totals.
     const event = (await timedQuery<any>('SELECT * EXCEPT (event_time, agent_version, tool_name, source_id, decision, outcome, details, ts) FROM agent_events WHERE event_id = {id:UUID}', { id: known.event_id })).rows[0];
-    const count = (await metrics()).total_events;
+    const count = await logicalEventCount(run_id);
     await insertEvents([event]);
-    assert.equal((await metrics()).total_events, count);
+    assert.equal(await logicalEventCount(run_id), count);
     const ledger = JSON.parse(await on.readLedger({ account: 'ACME-001' }));
     assert.equal(ledger.entries.length, 1);
   }
   assert.notEqual(runs[0], runs[1]);
+  const final = await metrics();
+  assert.equal(final.total_events, initial.total_events, 'Verification must not inflate production counts');
+  assert.equal(final.blocked_24h, initial.blocked_24h, 'Verification must not inflate production blocks');
   const hunt = await fleetHunt('invoice-bot');
   assert(hunt.rowsRead >= 0 && hunt.elapsedMs >= 0);
   console.log(JSON.stringify({ migration_passes: 2, existing_events_preserved: before.length,

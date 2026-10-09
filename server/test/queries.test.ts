@@ -10,6 +10,7 @@ it('empty metrics use genuine zero counts and null unmeasured latency', async ()
   expect(await metrics()).toEqual({ total_events: 0, events_per_sec: 0, blocked_24h: 0, guard_p95_ms: null, findings: 0, rules_learned: 0, recent_blocked: [] });
   const sql = query.mock.calls[0][0];
   expect(sql).toContain('LIMIT 1 BY event_id'); expect(sql).toContain('setup-smoke');
+  expect(sql).toContain('ws-c-ledger-verification-');
   expect(query.mock.calls[1][0]).toContain('FROM learned_rules');
 });
 it('keeps failure unavailable rather than converting failed queries into zero', async () => {

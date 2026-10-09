@@ -2,9 +2,14 @@ import { timedQuery } from './clickhouse';
 import { bus } from './bus';
 
 // Setup checks are retained in storage but never counted as application traffic.
-const application = "NOT startsWith(run_id, 'setup-smoke') AND NOT startsWith(session_id, 'setup-smoke')";
+const application = "NOT startsWith(run_id, 'setup-smoke') AND NOT startsWith(session_id, 'setup-smoke') AND NOT startsWith(run_id, 'ws-c-ledger-verification-')";
 // Audit IDs identify logical actions even if a producer inserted a duplicate.
 const events = `(SELECT * FROM agent_events WHERE ${application} ORDER BY ts DESC LIMIT 1 BY event_id)`;
+export async function logicalEventCount(run_id: string) {
+  const result = await timedQuery<{ n: string }>(`SELECT count() AS n FROM
+    (SELECT event_id FROM agent_events WHERE run_id = {run:String} LIMIT 1 BY event_id)`, { run: run_id });
+  return Number(result.rows[0]?.n ?? 0);
+}
 export async function metrics() {
   const data = await timedQuery<Record<string, number | null>>(`SELECT
     count() AS total_events,

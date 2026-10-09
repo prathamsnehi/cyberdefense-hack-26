@@ -83,6 +83,11 @@ any existing deployment stores. Confirm the new credential authenticates and
 the old one is rejected. The supplied `default` database credential has no
 `ALTER USER` privilege; SQL authentication alone cannot reset its password.
 
+Rotation was performed through the Cloud console on October 9, 2026. The new
+credential authenticated over HTTPS; the exposed credential returned HTTP 401.
+The replacement was saved to the ignored local `.env` and synchronized into
+Actions repository secrets.
+
 References:
 - [Neon gateway configuration](https://neon.com/blog/llms-belong-in-your-backend)
 - [ClickHouse Cloud password reset](https://clickhouse.com/docs/cloud/security/secure-your-service)

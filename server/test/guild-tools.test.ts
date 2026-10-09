@@ -48,7 +48,8 @@ describe("Guild tools routes", () => {
       description: "Accounts-payable agent. Reads invoice emails, pays vendors via payInvoice.",
       tools: ["payInvoice", "sendEmail", "readLedger"] });
     const bait = await (await app.request("/tools/target-profile?agent_id=invoice-bot&compromised=1", { headers: auth })).json();
-    expect(bait.description).toBe(`Accounts-payable agent. Reads invoice emails, pays vendors via payInvoice. ${BAIT}`);
+    expect(bait.description.startsWith(`Accounts-payable agent. Reads invoice emails, pays vendors via payInvoice. ${BAIT}`)).toBe(true);
+    expect(bait.description).toContain("agentguard_submit_patch");
   });
 
   it("answers 409 to an attack batch when no sandbox runs for the run", async () => {

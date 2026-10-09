@@ -7,16 +7,17 @@ export const ch = createClient({
   url: env.CLICKHOUSE_URL, username: env.CLICKHOUSE_USER,
   password: env.CLICKHOUSE_PASSWORD, database: env.CLICKHOUSE_DATABASE,
   // Every write is acknowledged; replica reads wait for preceding writes.
-  clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1, select_sequential_consistency: 1 },
+  clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1, select_sequential_consistency: '1' },
 });
 export type TimedRows<T> = { rows: T[]; elapsedMs: number; rowsRead: number };
 export async function timedQuery<T>(query: string, params: Record<string, unknown> = {}): Promise<TimedRows<T>> {
   const result = await ch.query({ query, query_params: params, format: 'JSON' });
-  const body = await result.json<{ data: T[]; statistics: { elapsed: number; rows_read: number } }>();
+  const body = await result.json<T>();
+  if (!body.statistics) throw new Error('ClickHouse query statistics unavailable');
   return { rows: body.data, elapsedMs: body.statistics.elapsed * 1000, rowsRead: body.statistics.rows_read };
 }
 export async function insertRows(table: string, rows: Record<string, unknown>[]): Promise<void> {
-  if (!['agent_events', 'findings', 'payees'].includes(table)) throw new Error('Unsupported audit table');
+  if (!['agent_events', 'findings', 'payees', 'learned_rules'].includes(table)) throw new Error('Unsupported audit table');
   if (!rows.length) return;
   await ch.insert({ table, values: rows, format: 'JSONEachRow' });
 }

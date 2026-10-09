@@ -11,6 +11,7 @@ const req = (k: string) => {
   return v;
 };
 const opt = (k: string, d = "") => process.env[k] ?? d;
+if (opt('CLICKHOUSE_DATABASE', 'albert') !== 'albert') throw new Error('Albert schema requires CLICKHOUSE_DATABASE=albert');
 
 export const env = {
   PORT: Number(opt("PORT", "8787")),

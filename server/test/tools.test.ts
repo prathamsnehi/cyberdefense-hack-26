@@ -41,7 +41,7 @@ describe('trusted sandbox gateway', () => {
     await expect(tools.payInvoice(args)).rejects.toBeInstanceOf(ToolBlockedError);
     expect(rows[0].agent_id).toBe('other-agent');
   });
-  it.each([0, -1, NaN, Infinity, '25', 0.001])('rejects malformed amounts %s without an action', async amount => {
+  it.each([0, -1, NaN, Infinity, '25', 0.001, 1e-9])('rejects malformed amounts %s without an action', async amount => {
     const { db, rows } = memory();
     await expect(createToolGateway(context, db).payInvoice({ ...args, amount })).rejects.toThrow('amount');
     expect(rows).toHaveLength(0);

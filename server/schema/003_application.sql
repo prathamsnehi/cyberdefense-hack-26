@@ -29,3 +29,6 @@ CREATE TABLE IF NOT EXISTS albert.findings (
  run_id String, rule_id String, file String, line UInt32, severity String,
  message String, origin String, ts DateTime64(3, 'UTC') DEFAULT now64(3)
 ) ENGINE = MergeTree ORDER BY (run_id, ts, rule_id);
+CREATE TABLE IF NOT EXISTS albert.learned_rules (
+ run_id String, rule_id String, ts DateTime64(3, 'UTC') DEFAULT now64(3)
+) ENGINE = MergeTree ORDER BY (run_id, rule_id);

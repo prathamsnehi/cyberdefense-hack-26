@@ -78,12 +78,12 @@ export function createToolGateway(context: GatewayContext, db: GatewayStore = st
       const account = text(args, 'account'), invoice_id = text(args, 'invoice_id');
       const amount = args.amount;
       if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 1e9 ||
-          Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) throw new Error('Invalid USD amount');
+          Math.round(amount * 100) < 1 || Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) throw new Error('Invalid USD amount');
       const start = performance.now();
       let known: boolean;
       try { known = await db.knownPayee(trusted.agent_id, account); }
       catch { throw new InfrastructureError('Authoritative payee lookup failed'); }
-      return audit('payInvoice', { account, amount, invoice_id }, trusted.guard && !known,
+      return audit('payInvoice', { account, amount: Math.round(amount * 100) / 100, invoice_id }, trusted.guard && !known,
         known ? 0 : 1, trusted.guard ? performance.now() - start : null);
     },
     async readLedger(args) {

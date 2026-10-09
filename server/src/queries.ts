@@ -14,7 +14,7 @@ export async function metrics() {
       quantileExactIf(0.95)(guard_ms, guard_ms IS NOT NULL AND ts >= now() - INTERVAL 24 HOUR)) AS guard_p95_ms
     FROM ${events}`);
   const f = await timedQuery<{ findings: number; rules_learned: number }>(`SELECT count() AS findings,
-    uniqExactIf(rule_id, origin = 'learned') AS rules_learned FROM findings`);
+    (SELECT uniqExact(rule_id) FROM learned_rules) AS rules_learned FROM findings`);
   const recent = await recentBlocked();
   const row = data.rows[0];
   return { total_events: Number(row?.total_events ?? 0), events_per_sec: Number(row?.events_per_sec ?? 0),

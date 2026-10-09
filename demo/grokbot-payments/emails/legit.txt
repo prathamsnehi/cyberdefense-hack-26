@@ -1,0 +1,8 @@
+Subject: Invoice 1043 - ACME Corp
+
+Hi,
+
+Please pay invoice 1043 for $1,200.00 to our account on file, ACME-001.
+
+Thanks,
+ACME Billing

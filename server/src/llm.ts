@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { env } from "./env";
+import { env, requireNeonGateway } from "./env";
 
 // A hung model call must not freeze the demo: two minutes, one retry.
 const opts = { timeout: 120_000, maxRetries: 1 };
@@ -7,8 +7,14 @@ const opts = { timeout: 120_000, maxRetries: 1 };
 // On WS-C's setup the "openai" client goes through the Neon AI gateway: env.ts maps the Neon token and host onto
 // OPENAI_API_KEY / OPENAI_BASE_URL. `|| "missing"` keeps the import from throwing when a key is empty; a real
 // call then fails with a clear 401.
-export const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY || "missing",
-  baseURL: (env as { OPENAI_BASE_URL?: string }).OPENAI_BASE_URL || undefined, ...opts });
+const neonClient = new OpenAI({ apiKey: env.OPENAI_API_KEY || "missing",
+  baseURL: env.OPENAI_BASE_URL || 'https://neon-gateway-unconfigured.invalid/v1', ...opts });
+// Preserve the shared export, while failing before any request if Neon is not configured.
+// An absent Neon host must never fall back to a direct provider endpoint.
+export const openai = new Proxy(neonClient, { get(client, key, receiver) {
+  if (key === 'chat') requireNeonGateway();
+  return Reflect.get(client, key, receiver);
+} });
 // AkashML speaks the OpenAI API.
 export const akash = new OpenAI({ apiKey: env.AKASHML_API_KEY || "missing", baseURL: "https://api.akashml.com/v1", ...opts });
 

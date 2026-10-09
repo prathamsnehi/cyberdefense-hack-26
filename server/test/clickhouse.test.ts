@@ -11,9 +11,10 @@ it('does not resolve before insert acknowledgement, and never retries an error',
   let acknowledge!: () => void;
   client.insert.mockImplementationOnce(() => new Promise<void>(resolve => { acknowledge = resolve; }));
   let settled = false;
-  const promise = insertEvents([{ event_id: 'stable-id', agent_id: 'invoice-bot' } as AgentEvent]).then(() => { settled = true; });
+  const promise = insertEvents([{ event_id: 'stable-id', agent_id: 'invoice-bot', guard: false } as unknown as AgentEvent]).then(() => { settled = true; });
   await Promise.resolve(); expect(settled).toBe(false); acknowledge(); await promise;
   expect(client.insert.mock.calls[0][0].values[0].event_id).toBe('stable-id');
+  expect(client.insert.mock.calls[0][0].values[0]).not.toHaveProperty('guard');
   client.insert.mockRejectedValueOnce(new Error('timeout'));
   await expect(insertRows('agent_events', [{}])).rejects.toThrow('timeout');
   expect(client.insert).toHaveBeenCalledTimes(2);

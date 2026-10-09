@@ -22,5 +22,9 @@ export async function insertRows(table: string, rows: Record<string, unknown>[])
   await ch.insert({ table, values: rows, format: 'JSONEachRow' });
 }
 export async function insertEvents(events: AgentEvent[]): Promise<void> {
-  await insertRows('agent_events', events.map(e => ({ ...e, event_id: e.event_id ?? randomUUID() })));
+  // Runner metadata may contain non-column fields such as guard; only write the shared contract.
+  await insertRows('agent_events', events.map(e => ({ event_id: e.event_id ?? randomUUID(),
+    run_id: e.run_id ?? '', guard_ms: e.guard_ms ?? null, agent_id: e.agent_id, version: e.version,
+    session_id: e.session_id, event_type: e.event_type, tool: e.tool, args: e.args, source: e.source,
+    is_new_payee: e.is_new_payee, attack_id: e.attack_id, fleet: e.fleet })));
 }

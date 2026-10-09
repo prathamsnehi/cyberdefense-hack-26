@@ -1,4 +1,5 @@
-# Albert AI runs its dashboard, Hono API, agent subprocesses, and Semgrep on Akash Network.
+# Albert AI runs its Hono API, agent subprocesses, and Semgrep on Akash Network.
+# The dashboard frontend runs on Vercel and proxies /api to this backend.
 # Secret values are added privately when deploying; never commit a filled manifest.
 version: "2.0"
 services:
@@ -12,6 +13,7 @@ services:
       # Supply DASHBOARD_USER, DASHBOARD_PASSWORD, AGENTGUARD_API_KEY,
       # CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD,
       # NEON_AI_GATEWAY_TOKEN and NEON_AI_GATEWAY_BASE_URL privately.
+      # Supply DASHBOARD_ORIGIN as the exact Vercel HTTPS origin.
     expose:
       - port: 8787
         as: 80

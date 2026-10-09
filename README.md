@@ -108,7 +108,7 @@ Guild is **in progress**, not a working hosted runtime.
 | **Semgrep** | Supports the scan, gate, and learned-rule workflow in `scan.ts`, `gate.ts`, and `learn.ts`. |
 | **OpenAI models via Neon AI Gateway** | `server/src/llm.ts` uses the OpenAI SDK with an OpenAI-compatible endpoint. Set `OPENAI_BASE_URL` to `<gateway host>/v1` and use the gateway token as `OPENAI_API_KEY`. An empty base URL uses `api.openai.com/v1`. |
 | **AkashML** | Provides the target model endpoint at `api.akashml.com/v1` when `TARGET_PROVIDER=akash`. |
-| **Akash Network compute** | Standalone hosting for the dashboard, Hono API, agent execution, and Semgrep. See [Akash hosting and deployment evidence](docs/akash-hosting.md) for live verification status, architecture, and sponsor attribution. |
+| **Akash Network compute** | Hosts the Hono backend, agent execution, and Semgrep using sponsor compute credits. The dashboard frontend runs on Vercel and proxies authenticated API requests to Akash. See [hosting and deployment evidence](docs/akash-hosting.md). |
 | **Guild** | Custom integration specification and runbook exist. Hosted agent execution is unfinished; the runtime remains local. |
 | **ClickHouse** | Supports the watch workstream, dashboard queries, metrics, blocked-event feed, fleet hunt, and run scoreboard. |
 

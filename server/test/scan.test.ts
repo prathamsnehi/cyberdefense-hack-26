@@ -18,10 +18,11 @@ describe("parseSemgrep", () => {
       rule_id: "rules.agentguard.model-chosen-payee", file: "targets/invoice-bot/agent.ts",
       line: 21, end_line: 21, severity: "ERROR", message: "m" }]);
   });
-  it("returns [] for empty or invalid output", () => {
-    expect(parseSemgrep("")).toEqual([]);
-    expect(parseSemgrep("not json")).toEqual([]);
-    expect(parseSemgrep("null")).toEqual([]);
+  it("rejects invalid or failed scans rather than treating them as clean", () => {
+    for (const output of ['', 'not json', 'null', '{}', '{"results":[],"errors":[{"message":"bad configuration"}]}']) {
+      expect(() => parseSemgrep(output)).toThrow();
+    }
+    expect(parseSemgrep('{"results":[],"errors":[]}')).toEqual([]);
   });
   it("downgrades unknown severities to WARNING", () => {
     const stdout = JSON.stringify({ results: [{ check_id: "r", path: "f.ts", start: { line: 1 }, end: { line: 2 },

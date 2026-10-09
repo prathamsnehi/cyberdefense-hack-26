@@ -22,6 +22,7 @@ export async function lazy<T>(load: () => Promise<T>): Promise<T | null> {
 const unavailable = (c: Context, what: string) => c.json({ error: `${what} not available yet` }, 503);
 
 export const app = new Hono();
+const activeAgents = new Set<string>();
 app.use("*", cors());
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -31,9 +32,14 @@ app.post("/loop/start", async (c) => {
   if (!loop) return unavailable(c, "loop");
   const { agent_id = "invoice-bot" } = await c.req.json().catch(() => ({}));
   if (typeof agent_id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(agent_id)) return c.json({ error: 'Invalid agent_id' }, 400);
+  // Sandbox versions are keyed by agent/version. Concurrent runs would stop each other's runners.
+  if (activeAgents.has(agent_id)) return c.json({ error: 'A run for this agent is already active' }, 409);
+  activeAgents.add(agent_id);
   const run_id = nanoid(8);
   bus.register(run_id);
-  void loop.runLoop(run_id, agent_id);
+  void loop.runLoop(run_id, agent_id)
+    .catch(e => bus.emit(run_id, 'error', { message: String(e) }))
+    .finally(() => activeAgents.delete(agent_id));
   return c.json({ run_id });
 });
 

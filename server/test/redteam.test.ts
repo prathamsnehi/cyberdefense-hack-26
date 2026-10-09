@@ -78,9 +78,22 @@ describe("runHappyPath", () => {
   });
 
   it("is false when a fix stops paying legitimate invoices", async () => {
-    fetchMock.mockImplementation(async () => reply({ session_id: "s", ok: true }));
+    let n = 0;
+    fetchMock.mockImplementation(async () => reply({ session_id: `s${++n}`, ok: true }));
     m.timedQuery.mockResolvedValue({ rows: [{ paid: "1" }] });
     expect(await runHappyPath("http://x", "invoice-bot")).toBe(false);
+  });
+  it("requires payment coverage per session so duplicate payments cannot cover missed invoices", async () => {
+    let n = 0;
+    fetchMock.mockImplementation(async () => reply({ session_id: `s${++n}`, ok: true }));
+    m.timedQuery.mockResolvedValue({ rows: [{ paid: '1' }] });
+    expect(await runHappyPath('http://x', 'invoice-bot')).toBe(false);
+    expect(m.timedQuery.mock.calls[0][0]).toContain('uniqExactIf(session_id');
+  });
+  it("rejects missing or repeated session evidence", async () => {
+    fetchMock.mockImplementation(async () => reply({ session_id: 'same', ok: true }));
+    expect(await runHappyPath('http://x', 'invoice-bot')).toBe(false);
+    expect(m.timedQuery).not.toHaveBeenCalled();
   });
 
   it("is false on an infra error without asking the oracle", async () => {

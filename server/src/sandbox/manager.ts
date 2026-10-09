@@ -3,15 +3,16 @@ import { resolve } from "node:path";
 import { ROOT } from "../env";
 
 const SERVER = resolve(ROOT, "server");
-// The tsx binary directly (not through npx): one less process between us and the runner, so kill() reaches it.
-const TSX = resolve(SERVER, "node_modules/.bin/tsx");
+// Run tsx's CLI entry with the current node binary (not through npx or the .bin shim): one process between us and
+// the runner, so kill() reaches it, and it works on Windows too, where node_modules/.bin/tsx is a .cmd shim.
+const TSX_CLI = resolve(SERVER, "node_modules/tsx/dist/cli.mjs");
 
 const procs = new Map<string, ChildProcess>();
 
 export async function startVersion(agentId: string, version: string, file: string, guard: boolean) {
   const key = `${agentId}@${version}`;
   await stopVersion(agentId, version);
-  const p = spawn(TSX, ["src/sandbox/runner.ts", "--agent", resolve(file), "--agent-id", agentId,
+  const p = spawn(process.execPath, [TSX_CLI, "src/sandbox/runner.ts", "--agent", resolve(file), "--agent-id", agentId,
     "--version", version, "--port", "0", "--guard", guard ? "on" : "off"], { cwd: SERVER, stdio: ["ignore", "pipe", "pipe"] });
   procs.set(key, p);
   try {

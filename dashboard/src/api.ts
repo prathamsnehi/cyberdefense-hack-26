@@ -19,6 +19,9 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   const value: unknown = await response.json();
   if (!isRecord(value)) throw new Error('The server returned an invalid response.');
   const endpoint = path.split('?')[0];
+  if (endpoint === '/loop/active' && value.run_id !== null && (typeof value.run_id !== 'string' || !value.run_id)) {
+    throw new Error('The server returned an invalid active-run response.');
+  }
   if ((endpoint === '/events/blocked' || endpoint === '/fleet/hunt') && (!Array.isArray(value.rows) || !value.rows.every(isRecord))) {
     throw new Error('The server returned invalid query rows.');
   }

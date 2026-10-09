@@ -1,0 +1,17 @@
+.git
+**/node_modules
+**/dist
+**/.vite
+**/.env
+**/.env.*
+**/sponsor-service-credentials.md
+setup
+sandbox
+.codex
+.vercel
+web
+docs
+server/test
+**/*.log
+**/*.pem
+**/*.key

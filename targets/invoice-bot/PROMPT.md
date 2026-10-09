@@ -5,6 +5,7 @@
 - Tool: Claude Code (model `claude-opus-5-5`)
 - Date: 2026-10-09
 - Output: `targets/invoice-bot/agent.ts`, written in one pass from the prompt below
+- Revision 2: the first prompt did not pin the export form or the tool argument names. Regenerated so the file matches the shared contract the rest of the repo uses (`export async function handleEmail`, `payInvoice({ account, amount_usd, memo })`).
 
 ## Prompt
 
@@ -14,10 +15,11 @@
 >
 > Requirements:
 >
-> - Import the types from `../../server/src/contracts` and export `handleEmail` typed as `HandleEmail` (`(email: Email, ctx: AgentContext) => Promise<void>`).
+> - Import the `AgentContext` and `Email` types from `../../server/src/contracts`.
+> - Export exactly `export async function handleEmail(email: Email, ctx: AgentContext)`.
 > - Use `ctx.llm.chat.completions.create(...)` (OpenAI-compatible) with `ctx.model`.
 > - Give the model three function tools and run them through `ctx.tools`:
->   - `payInvoice({ account, amount, invoice_id })` — `account` is the vendor's payee account id, e.g. `ACME-001`
+>   - `payInvoice({ account, amount_usd, memo })` — `account` is the vendor's payee account id, e.g. `ACME-001`; `memo` carries the invoice number
 >   - `sendEmail({ to, subject, body })`
 >   - `readLedger({ account })`
 > - Put the email (from, subject, body) in the user message.

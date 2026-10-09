@@ -1,0 +1,44 @@
+# Albert AI runs its dashboard, Hono API, agent subprocesses, and Semgrep on Akash Network.
+# Secret values are added privately when deploying; never commit a filled manifest.
+version: "2.0"
+services:
+  albert:
+    image: ghcr.io/prathamsnehi/albert-ai:REPLACE_WITH_VERIFIED_COMMIT
+    env:
+      - PORT=8787
+      - AGENT_RUNTIME=local
+      - TARGET_PROVIDER=neon
+      - CLICKHOUSE_DATABASE=albert
+      # Supply DASHBOARD_USER, DASHBOARD_PASSWORD, AGENTGUARD_API_KEY,
+      # CLICKHOUSE_URL, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD,
+      # NEON_AI_GATEWAY_TOKEN and NEON_AI_GATEWAY_BASE_URL privately.
+    expose:
+      - port: 8787
+        as: 80
+        to:
+          - global: true
+        http_options:
+          read_timeout: 600000
+          send_timeout: 600000
+          next_tries: 1
+profiles:
+  compute:
+    albert:
+      resources:
+        cpu:
+          units: 2
+        memory:
+          size: 4Gi
+        storage:
+          - size: 10Gi
+  placement:
+    akash:
+      pricing:
+        albert:
+          denom: uakt
+          amount: 10000
+deployment:
+  albert:
+    akash:
+      profile: albert
+      count: 1

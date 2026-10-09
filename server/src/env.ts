@@ -13,10 +13,12 @@ const req = (k: string) => {
 const opt = (k: string, d = "") => process.env[k] || d;
 if (opt('CLICKHOUSE_DATABASE', 'albert') !== 'albert') throw new Error('Albert schema requires CLICKHOUSE_DATABASE=albert');
 
-const targetProvider = opt("TARGET_PROVIDER", "neon");
-if (!["neon", "akash"].includes(targetProvider)) {
-  throw new Error("TARGET_PROVIDER must be neon or akash (see .env.example)");
+// "openai" is accepted as an alias of "neon": both mean the OpenAI-compatible client in llm.ts.
+const rawProvider = opt("TARGET_PROVIDER", "neon");
+if (!["neon", "openai", "akash"].includes(rawProvider)) {
+  throw new Error("TARGET_PROVIDER must be neon, openai or akash (see .env.example)");
 }
+const targetProvider = rawProvider === "akash" ? "akash" : "neon";
 const gatewayBase = opt("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
 function validateGatewayHost(host: string) {
 try {
@@ -43,12 +45,13 @@ export const env = {
   NEON_MODEL: opt("NEON_MODEL", "gpt-5"),
   NEON_FAST_MODEL: opt("NEON_FAST_MODEL", "gpt-5-mini"),
   NEON_TARGET_MODEL: opt("NEON_TARGET_MODEL", "gpt-5-mini"),
-  // Existing workstream names remain aliases for Neon configuration.
-  OPENAI_API_KEY: opt("NEON_AI_GATEWAY_TOKEN"),
-  OPENAI_BASE_URL: gatewayBase ? `${gatewayBase}/v1` : "",
-  OPENAI_MODEL: opt("NEON_MODEL", opt("OPENAI_MODEL", "gpt-5")),
-  OPENAI_FAST_MODEL: opt("NEON_FAST_MODEL", opt("OPENAI_FAST_MODEL", "gpt-5-mini")),
-  OPENAI_TARGET_MODEL: opt("NEON_TARGET_MODEL", opt("OPENAI_TARGET_MODEL", "gpt-5-mini")),
+  // OpenAI-compatible endpoint (Neon AI Gateway: <gateway host>/v1). OPENAI_* win; legacy NEON_* names are the
+  // fallback; with neither base URL set the client talks to api.openai.com. Only model calls require the key.
+  OPENAI_API_KEY: opt("OPENAI_API_KEY") || opt("NEON_AI_GATEWAY_TOKEN"),
+  OPENAI_BASE_URL: (opt("OPENAI_BASE_URL") || (gatewayBase ? `${gatewayBase}/v1` : "https://api.openai.com/v1")).replace(/\/+$/, ""),
+  OPENAI_MODEL: opt("OPENAI_MODEL") || opt("NEON_MODEL", "gpt-5"),
+  OPENAI_FAST_MODEL: opt("OPENAI_FAST_MODEL") || opt("NEON_FAST_MODEL", "gpt-5-mini"),
+  OPENAI_TARGET_MODEL: opt("OPENAI_TARGET_MODEL") || opt("NEON_TARGET_MODEL", "gpt-5-mini"),
   AKASHML_API_KEY: akashKey,
   AKASHML_MODEL: opt("AKASHML_MODEL", "openai/gpt-oss-120b"),
   TARGET_MODEL: opt("TARGET_MODEL", "meta-llama/Llama-3.3-70B-Instruct"),
@@ -64,9 +67,16 @@ export const env = {
 };
 
 /** Database and dashboard imports need no model credential; actual model calls do. */
-export function requireNeonGateway() {
-  const apiKey = req("NEON_AI_GATEWAY_TOKEN");
-  const host = req("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
-  validateGatewayHost(host);
-  return { apiKey, baseURL: `${host}/v1` };
+export function requireLlm() {
+  const apiKey = env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Missing env var OPENAI_API_KEY (or NEON_AI_GATEWAY_TOKEN) (see .env.example)");
+  try {
+    const u = new URL(env.OPENAI_BASE_URL);
+    if (!["https:", "http:"].includes(u.protocol) || u.username || u.password || u.search || u.hash) throw new Error("invalid");
+  } catch {
+    throw new Error("OPENAI_BASE_URL must be an http(s) URL without credentials (see .env.example)");
+  }
+  return { apiKey, baseURL: env.OPENAI_BASE_URL };
 }
+/** @deprecated name kept for older imports. */
+export const requireNeonGateway = requireLlm;

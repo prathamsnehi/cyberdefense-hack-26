@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+// The real brief (D5) calls the model; the route test only checks wiring.
+vi.mock("../src/brief", () => ({ brief: async (task: string) => ({ brief_md: `brief for ${task}`, runtime: "local" }) }));
 vi.mock('../src/queries', () => ({ metrics: async () => ({ total_events: 0 }) }));
 import { app, lazy } from "../src/index";
 
@@ -10,9 +12,9 @@ describe("HTTP server", () => {
     expect(await r.json()).toEqual({ ok: true });
   });
 
-  it("POST /brief answers from the brief stub", async () => {
+  it("POST /brief returns what brief() answers", async () => {
     const r = await app.request("/brief", { method: "POST", body: JSON.stringify({ task: "x" }), headers: { "content-type": "application/json" } });
-    expect(await r.json()).toEqual({ brief_md: "(brief not configured)", runtime: "local" });
+    expect(await r.json()).toEqual({ brief_md: "brief for x", runtime: "local" });
   });
 
   it("GET /metrics serves the queries module (stub in tests until WS-C lands)", async () => {

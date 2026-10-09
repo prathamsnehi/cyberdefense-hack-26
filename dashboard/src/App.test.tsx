@@ -54,6 +54,22 @@ async function startRun() {
 }
 
 describe('Albert AI dashboard', () => {
+  it('attaches to the active run on 409 and replays its results without retrying start', async () => {
+    fetchMock.mockImplementation(async (url: string) => url === '/api/loop/start'
+      ? response({ run_id: 'existing-run', error: 'A run for this agent is already active' }, false, 409)
+      : response(url === '/api/metrics' ? metrics : { rows: [] }));
+    render(<App />);
+    const source = await startRun();
+    expect(source.url).toBe('/api/loop/existing-run/events');
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/loop/start')).toHaveLength(1);
+    act(() => {
+      source.emit('1', 'attack_batch', { version: 'v1', total: 30, succeeded: 22, infra_errors: 0 }, 'existing-run');
+      source.emit('2', 'done', {}, 'existing-run');
+    });
+    expect(within(screen.getByRole('table')).getByText('v1')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('button', { name: /run defense loop/i })).toBeEnabled();
+  });
   it('renders telemetry and marks a missing latency unavailable', async () => {
     render(<App />);
     await screen.findByText('420');

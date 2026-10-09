@@ -88,8 +88,10 @@ export function useDefenseRun() {
     controller.current = new AbortController();
     try {
       const response = await fetch('/api/loop/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: controller.current.signal });
-      if (!response.ok) throw new Error(`Could not start the defense loop (${response.status}).`);
-      const value: unknown = await response.json();
+      const value: unknown = await response.json().catch(() => undefined);
+      // A different tab or teammate may already be running this agent. Attach to that run; never retry the POST.
+      const activeRun = response.status === 409 && isRecord(value) && typeof value.run_id === 'string' && value.run_id;
+      if (!response.ok && !activeRun) throw new Error(`Could not start the defense loop (${response.status}).`);
       if (!isRecord(value) || typeof value.run_id !== 'string' || !value.run_id) throw new Error('The server did not return a run ID.');
       if (generation.current !== current) return;
       const id = value.run_id;

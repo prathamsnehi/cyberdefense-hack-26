@@ -22,7 +22,10 @@ describe('run ownership', () => {
     const first = await start('invoice-bot');
     expect(first.status).toBe(200);
     const firstRun = await first.json();
-    expect((await start('invoice-bot')).status).toBe(409);
+    const conflict = await start('invoice-bot');
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({ run_id: firstRun.run_id });
+    expect(loop.runLoop).toHaveBeenCalledTimes(1);
     finish();
     await new Promise(resolve => setTimeout(resolve, 0));
     loop.runLoop.mockResolvedValueOnce(undefined);

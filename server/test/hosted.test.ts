@@ -43,7 +43,8 @@ describe("standalone Akash dashboard", () => {
     expect(await response.json()).toEqual({ authorization: "Bearer private-backend-token", key: null, body: { agent_id: "invoice-bot" } });
   });
   it("rejects cross-site mutations before calling the API", async () => {
-    for (const extra of [{ Origin: "https://attacker.example" }, { "Sec-Fetch-Site": "cross-site" }]) {
+    const crossSiteHeaders: Record<string, string>[] = [{ Origin: "https://attacker.example" }, { "Sec-Fetch-Site": "cross-site" }];
+    for (const extra of crossSiteHeaders) {
       expect((await host.request("https://albert.example/api/loop/start", { method: "POST", headers: { ...auth, ...extra }, body: "{}" })).status).toBe(403);
     }
   });

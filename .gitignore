@@ -6,3 +6,8 @@ sponsor-service-credentials.md
 /sandbox/
 dist/
 .vercel/
+
+# Guild CLI per-agent git state (the agents live in the monorepo; Guild keeps its own copy)
+guild-agents/*/.guild-git/
+guild-agents/*/node_modules/
+guild-agents/*/dist/

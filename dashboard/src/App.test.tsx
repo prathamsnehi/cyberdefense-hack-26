@@ -141,7 +141,7 @@ describe('Albert AI dashboard', () => {
     fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : url === '/api/fleet/hunt' ? { rows: [{ database: 'fleet-db', host: 'agent-7', finding: 'Database match' }], rowsRead: 716, elapsedMs: 13.2 } : { rows: [], rowsRead: 4, elapsedMs: 1 }));
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
-    const huntPanel = screen.getByRole('heading', { name: 'Database fleet hunt' }).closest('section')!;
+    const huntPanel = screen.getByRole('heading', { name: 'Agent fleet hunt' }).closest('section')!;
     await waitFor(() => expect(huntPanel.querySelector('summary')).toHaveTextContent('fleet-db'));
     expect(screen.getByText('716 rows scanned · 13.2 ms')).toBeInTheDocument();
   });
@@ -160,7 +160,7 @@ describe('Albert AI dashboard', () => {
     fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : { rows: [] }));
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
-    const huntPanel = screen.getByRole('heading', { name: 'Database fleet hunt' }).closest('section')!;
+    const huntPanel = screen.getByRole('heading', { name: 'Agent fleet hunt' }).closest('section')!;
     expect(await within(huntPanel).findByText('Unavailable rows scanned · Unavailable ms')).toBeInTheDocument();
     expect(within(huntPanel).queryByText('0 rows scanned · 0 ms')).toBeNull();
   });

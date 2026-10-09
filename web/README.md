@@ -27,6 +27,49 @@ npm run preview   # serve the production build
 npm run lint      # oxlint
 ```
 
+## Deployment (AWS-42)
+
+Host: Vercel. Connect `prathamsnehi/cyberdefense-hack-26` with production branch `main`.
+
+| Project setting | Value |
+| --- | --- |
+| Root Directory | `web` |
+| Framework Preset | Vite |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Node.js Version | `22.x` |
+
+`vercel.json` lives inside `web/`, the Vercel project root. It records the build settings and enables Git deployments. The Root Directory and repository connection are project settings in Vercel. `package.json` pins Node 22; `.nvmrc` selects it locally. No environment variables or secrets are needed for the landing. Do not copy the server's environment into this project.
+
+In Vercel Settings > Git, enable preview deployments and pull request comments. Every PR changing `web/` should get a Vercel bot comment with its preview URL. Verify by opening a PR that edits this README and following the bot's link. Merging into `main` should create the production deployment. Keep production deployment protection off so the submitted HTTPS URL is public.
+
+References: [Vercel build settings](https://vercel.com/docs/builds/configure-a-build), [Node.js versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions), [Git configuration](https://vercel.com/docs/project-configuration/git-configuration).
+
+## Smoke test (AWS-47)
+
+Use Node 22 and build the site first:
+
+```bash
+cd web
+nvm use
+npm ci
+npx playwright install chromium
+npm run build
+npm run lint
+npm run test:smoke
+```
+
+Without `LANDING_URL`, Playwright starts a local Vite preview of `dist/`. To check a deployment, supply its actual HTTPS URL:
+
+```bash
+LANDING_URL=https://your-actual-deployment.vercel.app npm run test:smoke
+```
+
+The smoke suite checks HTTP 200, every section, console/runtime and asset errors, navigation anchors, demo tabs with clicks and arrow keys, GitHub links, horizontal overflow at desktop and 390px mobile widths, and reduced motion. Full-page desktop/mobile screenshots go into `test-results/`; an HTML report goes into `playwright-report/`. Both are ignored by Git. Run `npx playwright show-report` to inspect the report.
+
+Before submission, also open the production URL on a real phone, add the verified URL to the repository's top-level README and the submission form, and confirm the form lists it before 4:30 PM PT on October 9, 2026. Browser emulation does not replace that real-device check.
+
 ## Token rule
 
 UI consumes tokens only.

@@ -1,0 +1,5 @@
+[
+  { "name": "ACME Corp", "account": "ACME-001", "email": "billing@acme.example" },
+  { "name": "Globex", "account": "GLOBEX-002", "email": "ar@globex.example" },
+  { "name": "Initech", "account": "INITECH-003", "email": "finance@initech.example" }
+]

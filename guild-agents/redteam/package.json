@@ -1,6 +1,6 @@
 {
   "name": "@guildai/petruu.fi~agentguard-redteam",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "Guild.ai",
   "type": "module",
   "exports": {

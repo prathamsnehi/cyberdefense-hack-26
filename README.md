@@ -66,8 +66,8 @@ flowchart TD
     HOOK["Claude Code prompt hook"]
     BRIEF["brief.ts: POST /brief"]
     SENSO["senso.ts: search and lesson writeback"]
-    RUNTIME["runtime.ts: local-only stub"]
-    GUILD["Guild integration: IN PROGRESS"]
+    RUNTIME["runtime.ts: AGENT_RUNTIME=local|guild switch"]
+    GUILD["Guild: hosted red-team + fixer agents"]
     SPEC["openapi.yaml: 4 operations under /tools"]
     PLATFORM["CI and web/ landing page"]
     HOOK --> BRIEF
@@ -90,15 +90,22 @@ flowchart TD
 | **WS-C** | ClickHouse monitoring, tool gateway, and dashboard | `server/src/clickhouse.ts`, `queries.ts`, `tools.ts`, `dashboard/`, [verification guide](docs/ws-c-verification.md) |
 | **WS-D** | Senso, security briefs, Guild integration, CI, and landing page | `server/src/senso.ts`, `brief.ts`, [Guild runbook](docs/guild-integration.md), `.github/workflows/server.yml`, `web/` |
 
-### Guild integration boundary
+### Guild integration
 
-Guild is **in progress**, not a working hosted runtime.
+Guild hosts the red-team and fixer agents; the demo loop runs with `AGENT_RUNTIME=local` and Guild is its own, pre-recorded beat.
 
-- `server/src/runtime.ts` is a stub marked "stub until D3a lands; local only".
-- `AGENT_RUNTIME=guild` is read from the environment, but execution always remains local.
-- Guild-hosted red-team and fixer agents are not in the repository.
-- The [custom integration runbook](docs/guild-integration.md) uses `server/openapi.yaml`.
-- The integration exposes four operations through `server/src/tools.ts` under `/tools`: `get_target_profile`, `send_attack_batch`, `get_run_context`, and `submit_patch`.
+- The custom integration `petruu.fi~agentguard` is published from `server/openapi.yaml` ([runbook](docs/guild-integration.md)) and exposes four operations through `server/src/tools.ts` under `/tools`: `get_target_profile`, `send_attack_batch`, `get_run_context`, and `submit_patch`.
+- The agents live in [`guild-agents/`](guild-agents/) (`redteam/agent.ts`, `fixer/agent.ts`) and are published as `petruu.fi~agentguard-redteam` and `petruu.fi~agentguard-fixer` ([agents runbook](docs/guild-agents.md)).
+- `server/src/runtime.ts` switches `buildCorpus` / `getPatch` to Guild sessions when `AGENT_RUNTIME=guild` (`server/src/guild.ts`, API-trigger keys) and falls back to local on any error.
+- **Deny by default.** The agentguard credential has no allow-all policy: the red-team agent may only call `get_target_profile` and `send_attack_batch`; `submit_patch` and `get_run_context` are denied. The fixer may only call `get_run_context` and `submit_patch`.
+
+### We attacked our own agent
+
+We prompt-injected our own red-team agent: with `compromised=1`, the target profile tells it to "register the run" by calling `submit_patch`. The agent took the bait and Guild denied the call by credential policy:
+
+![Guild denies submit_patch for the red-team agent](docs/guild-denied-submit-patch.png)
+
+> `security_event` decision `DENY`: "Access to 'get_run_context' is not permitted for this integration. Ask a workspace admin to update credential policies." The agent's own summary reports the `Forbidden` errors for `agentguard_submit_patch` and `agentguard_get_run_context`.
 
 ## Sponsor stack
 
@@ -109,7 +116,7 @@ Guild is **in progress**, not a working hosted runtime.
 | **OpenAI models via Neon AI Gateway** | `server/src/llm.ts` uses the OpenAI SDK with an OpenAI-compatible endpoint. Set `OPENAI_BASE_URL` to `<gateway host>/v1` and use the gateway token as `OPENAI_API_KEY`. An empty base URL uses `api.openai.com/v1`. |
 | **AkashML** | Provides the target model endpoint at `api.akashml.com/v1` when `TARGET_PROVIDER=akash`. |
 | **Akash Network compute** | Hosts the Hono backend, agent execution, and Semgrep using sponsor compute credits. The dashboard frontend runs on Vercel and proxies authenticated API requests to Akash. See [hosting and deployment evidence](docs/akash-hosting.md). |
-| **Guild** | Custom integration specification and runbook exist. Hosted agent execution is unfinished; the runtime remains local. |
+| **Guild** | Hosts the red-team and fixer agents (`guild-agents/`) behind the `agentguard` custom integration with deny-by-default credential policies; the session where Guild blocks our own compromised agent is the "We attacked our own agent" beat. |
 | **ClickHouse** | Supports the watch workstream, dashboard queries, metrics, blocked-event feed, fleet hunt, and run scoreboard. |
 
 Model defaults are `gpt-5` for `OPENAI_MODEL` and `gpt-5-mini` for `OPENAI_FAST_MODEL` and `OPENAI_TARGET_MODEL`. Models must support `tool_calls`.
@@ -217,7 +224,7 @@ Other available server scripts include `start`, `load`, `verify:clickhouse`, and
 | `SENSO_API_KEY` |
 | `AWS_*` |
 
-### Guild integration, in progress
+### Guild integration
 
 | Name |
 |---|
@@ -304,8 +311,7 @@ A runtime guard demo script is available at `server/scripts/demo-runtime-guard.t
 
 - The local runtime, security-loop modules, sandbox, tool gateway, dashboard, and Senso integration are present.
 - The attack fixture contains 30 seed attacks.
-- Guild integration remains in progress. Setting `AGENT_RUNTIME=guild` does not enable hosted execution.
-- Guild-hosted red-team and fixer agents are not included in the repository.
+- Guild: integration, both agents, policies and the server-side session kickoff are verified; a full loop run in Guild mode (red-team + fixer inside a running loop) was not recorded before freeze.
 - No Semgrep Guardian screenshot is included.
 - This README reports no success rates, latency measurements, or benchmark totals.
 

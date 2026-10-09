@@ -9,9 +9,10 @@ const neonClient = new OpenAI({
   baseURL: env.OPENAI_BASE_URL || "https://neon-gateway-unconfigured.invalid/v1",
   ...opts,
 });
-export const neon = new Proxy(neonClient, { get(client, key, receiver) {
+export const neon = new Proxy(neonClient, { get(client, key) {
   if (key === 'chat') requireNeonGateway();
-  return Reflect.get(client, key, receiver);
+  const value = Reflect.get(client, key, client);
+  return typeof value === 'function' ? value.bind(client) : value;
 } });
 // Compatibility for workstreams that still import this name; it always routes through Neon.
 export const openai = neon;

@@ -75,7 +75,7 @@ export function Comparison() {
           role="region"
           aria-labelledby="compare-title"
           tabIndex={0}
-          className="reveal mt-16 w-full max-w-full overflow-x-auto rounded-lg border border-hairline [contain:inline-size]"
+          className="reveal relative mt-16 w-full max-w-full overflow-x-auto rounded-lg border border-hairline [contain:inline-size]"
         >
           <table className="w-full min-w-[40rem] border-collapse text-left text-small">
             <caption className="caption-bottom border-t border-hairline px-4 py-4 text-left text-caption text-fg-muted">

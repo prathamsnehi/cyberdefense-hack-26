@@ -1,0 +1,57 @@
+rules:
+  - id: agentguard.untrusted-email-to-tool-llm
+    mode: taint
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      Inbound email text reaches an LLM call that can use tools. Anyone who can email this agent can try to
+      steer its tool calls (prompt injection). Keep money-moving tools behind requireKnownPayee() or human approval.
+    metadata: { category: security, cwe: "CWE-77", agentguard_class: untrusted-input-to-tool-llm }
+    pattern-sources:
+      - patterns:
+          - pattern-inside: |
+              async function $F(..., $E: Email, ...) { ... }
+          - pattern-either:
+              - pattern: $E.body
+              - pattern: $E.subject
+    pattern-sinks:
+      # The whole tool-enabled call is the sink: semgrep reports one finding on the `create(` line.
+      - pattern: '$LLM.chat.completions.create({..., tools: $T, ...})'
+
+  - id: agentguard.unchecked-tool-dispatch
+    languages: [typescript]
+    # WARNING on purpose: its pattern-not-inside only recognizes two allowlist idioms. As ERROR it would reject a
+    # correct fix that uses `.includes(` or a `switch`, three times in a row, in front of the judges.
+    severity: WARNING
+    message: >-
+      The model's output decides which tool runs, with no allowlist check. A prompt-injected model can call any
+      tool in ctx.tools. Check the tool name against an explicit allowlist first.
+    metadata: { category: security, cwe: "CWE-470", agentguard_class: unchecked-tool-dispatch }
+    patterns:
+      - pattern: $TOOLS[$CALL.function.name]
+      - pattern-not-inside: |
+          if (<... $ALLOWED.has($CALL.function.name) ...>) { ... }
+      - pattern-not-inside: |
+          if (!$ALLOWED.has($CALL.function.name)) continue;
+          ...
+
+  - id: agentguard.model-chosen-payee
+    mode: taint
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      The account passed to payInvoice comes straight from model output. An attacker who controls the model's input
+      (for example an inbound email) controls where money goes. Use requireKnownPayee(account, ctx.knownPayees).
+    metadata: { category: security, cwe: "CWE-807", agentguard_class: untrusted-input-to-money-tool }
+    pattern-sources:
+      - pattern: JSON.parse($CALL.function.arguments)
+    pattern-sanitizers:
+      - pattern: requireKnownPayee(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: '$CTX.tools.payInvoice({..., account: $ACC, ...})'
+          - focus-metavariable: $ACC
+      - patterns:
+          - pattern: $CTX.tools.payInvoice($ARGS)
+          - pattern-not: '$CTX.tools.payInvoice({...})'
+          - focus-metavariable: $ARGS

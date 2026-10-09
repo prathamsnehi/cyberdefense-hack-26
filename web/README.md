@@ -31,6 +31,8 @@ npm run lint      # oxlint
 
 Host: Vercel. Connect `prathamsnehi/cyberdefense-hack-26` with production branch `main`.
 
+Production: [Albert AI](https://albert-ai-nine.vercel.app). Project: [Vercel dashboard](https://vercel.com/blackmask-exes-projects/albert-ai).
+
 | Project setting | Value |
 | --- | --- |
 | Root Directory | `web` |

@@ -3,7 +3,7 @@ const query = vi.hoisted(() => vi.fn());
 vi.mock('../src/clickhouse', () => ({ timedQuery: query }));
 import { metrics, fleetHunt, attackScoreboard } from '../src/queries';
 import { bus } from '../src/bus';
-beforeEach(() => query.mockReset());
+beforeEach(() => { query.mockReset(); });
 it('empty metrics use genuine zero counts and null unmeasured latency', async () => {
   query.mockResolvedValueOnce({ rows: [{ total_events: '0', events_per_sec: 0, blocked_24h: '0', guard_p95_ms: null }] })
     .mockResolvedValueOnce({ rows: [{ findings: '0', rules_learned: '0' }] }).mockResolvedValueOnce({ rows: [] });

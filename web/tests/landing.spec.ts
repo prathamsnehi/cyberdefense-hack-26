@@ -122,10 +122,21 @@ test("reduced motion shows content immediately and stops cycling", async ({ page
     return node.classList.contains("is-visible") && style.opacity === "1" &&
       (style.transform === "none" || style.transform === "matrix(1, 0, 0, 1, 0, 0)");
   }))).toBe(true);
-  const activeStep = page.locator('[aria-current="step"]');
-  const initialStep = await activeStep.textContent();
-  await page.waitForTimeout(2100); // Longer than the normal 1800ms cycle.
-  await expect(activeStep).toHaveText(initialStep || "");
+  const heroLoop = page.getByRole("list", { name: "The Albert AI loop", exact: true });
+  await heroLoop.scrollIntoViewIfNeeded();
+  await expect(heroLoop).toBeVisible();
+  const initialHero = await heroLoop.innerHTML();
+  await page.waitForTimeout(2100); // Longer than the hero's 1600ms cycle.
+  expect(await heroLoop.innerHTML()).toBe(initialHero);
+
+  const loop = page.locator(".loop-motion");
+  await loop.scrollIntoViewIfNeeded();
+  await expect(loop).toHaveClass(/is-entered/);
+  await expect(loop).not.toHaveClass(/is-running/);
+  const initialLoop = await loop.innerHTML();
+  await page.waitForTimeout(3600); // Covers the loop intro and a normal step.
+  expect(await loop.innerHTML()).toBe(initialLoop);
+  await expect(loop).not.toHaveClass(/is-running/);
   const animations = await page.evaluate(() => document.getAnimations().filter((animation) =>
     animation.playState === "running",
   ).length);

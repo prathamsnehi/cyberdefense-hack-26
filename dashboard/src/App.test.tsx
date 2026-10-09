@@ -35,6 +35,7 @@ const metrics = { events_per_sec: 12, total_events: 420, blocked_24h: 8, finding
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  sessionStorage.clear();
   MockEventSource.instances = [];
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/metrics') return response(metrics);
@@ -54,6 +55,30 @@ async function startRun() {
 }
 
 describe('Albert AI dashboard', () => {
+  it('detects an active run on load and observes it without starting another', async () => {
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/loop/active'
+      ? { run_id: 'active-run' } : url === '/api/metrics' ? metrics : { rows: [] }));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /observe active run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+    expect(MockEventSource.instances[0].url).toBe('/api/loop/active-run/events');
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/loop/start')).toBe(false);
+  });
+
+  it('keeps the last observed run across a refresh and offers to replay it', async () => {
+    sessionStorage.setItem('albert-last-run', 'previous-run');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /view previous run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+    const source = MockEventSource.instances[0];
+    expect(source.url).toBe('/api/loop/previous-run/events');
+    act(() => {
+      source.emit('1', 'verdict', { version: 'v5', accepted: true, happy_path_ok: true, attacks_total: 30, attacks_succeeded: 0, infra_errors: 0 }, 'previous-run');
+      source.emit('2', 'done', {}, 'previous-run');
+    });
+    expect(screen.getByText('Accepted')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/loop/start')).toBe(false);
+  });
   it('attaches to the active run on 409 and replays its results without retrying start', async () => {
     fetchMock.mockImplementation(async (url: string) => url === '/api/loop/start'
       ? response({ run_id: 'existing-run', error: 'A run for this agent is already active' }, false, 409)

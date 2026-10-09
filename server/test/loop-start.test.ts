@@ -22,12 +22,16 @@ describe('run ownership', () => {
     const first = await start('invoice-bot');
     expect(first.status).toBe(200);
     const firstRun = await first.json();
+    const status = await app.request('/loop/active', { headers: { authorization: `Bearer ${env.AGENTGUARD_API_KEY}` } });
+    expect(await status.json()).toMatchObject({ agent_id: 'invoice-bot', run_id: firstRun.run_id });
+    expect((await app.request('/loop/active')).status).toBe(401);
     const conflict = await start('invoice-bot');
     expect(conflict.status).toBe(409);
     expect(await conflict.json()).toMatchObject({ run_id: firstRun.run_id });
     expect(loop.runLoop).toHaveBeenCalledTimes(1);
     finish();
     await new Promise(resolve => setTimeout(resolve, 0));
+    expect(await (await app.request('/loop/active', { headers: { authorization: `Bearer ${env.AGENTGUARD_API_KEY}` } })).json()).toMatchObject({ run_id: null });
     loop.runLoop.mockResolvedValueOnce(undefined);
     const second = await start('invoice-bot');
     expect(second.status).toBe(200);

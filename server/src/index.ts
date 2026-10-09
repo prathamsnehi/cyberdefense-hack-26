@@ -44,6 +44,13 @@ app.post("/loop/start", async (c) => {
   return c.json({ run_id });
 });
 
+app.get("/loop/active", (c) => {
+  if (c.req.header('authorization') !== `Bearer ${env.AGENTGUARD_API_KEY}`) return c.json({ error: 'Unauthorized' }, 401);
+  const agent_id = c.req.query('agent') ?? 'invoice-bot';
+  c.header('Cache-Control', 'no-store');
+  return c.json({ agent_id, run_id: activeAgents.get(agent_id) ?? null });
+});
+
 app.get("/loop/:id/events", async (c) => {
   const mod = await lazy(() => import("./bus"));
   if (!mod) return unavailable(c, "bus");

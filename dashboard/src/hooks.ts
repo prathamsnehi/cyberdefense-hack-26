@@ -53,6 +53,10 @@ export function useManualQuery<T>(path: string) {
 }
 
 export function useDefenseRun() {
+  const active = usePolling<{ run_id: string | null }>('/loop/active');
+  const [previousRun, setPreviousRun] = useState<string | undefined>(() => {
+    try { return sessionStorage.getItem('albert-last-run') || undefined; } catch { return undefined; }
+  });
   const [state, setState] = useState(initialEventState);
   const [status, setStatus] = useState<'idle' | 'starting' | 'running' | 'done' | 'error'>('idle');
   const [error, setError] = useState<string>();
@@ -74,7 +78,7 @@ export function useDefenseRun() {
     controller.current?.abort();
   }, [clearReconnectTimer]);
 
-  const start = useCallback(async () => {
+  const begin = useCallback(async (resumeId?: string) => {
     if (busy.current) return;
     busy.current = true;
     const current = ++generation.current;
@@ -87,15 +91,20 @@ export function useDefenseRun() {
     setStatus('starting');
     controller.current = new AbortController();
     try {
-      const response = await fetch('/api/loop/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: controller.current.signal });
-      const value: unknown = await response.json().catch(() => undefined);
-      // A different tab or teammate may already be running this agent. Attach to that run; never retry the POST.
-      const activeRun = response.status === 409 && isRecord(value) && typeof value.run_id === 'string' && value.run_id;
-      if (!response.ok && !activeRun) throw new Error(`Could not start the defense loop (${response.status}).`);
-      if (!isRecord(value) || typeof value.run_id !== 'string' || !value.run_id) throw new Error('The server did not return a run ID.');
+      let id = resumeId;
+      if (!id) {
+        const response = await fetch('/api/loop/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: controller.current.signal });
+        const value: unknown = await response.json().catch(() => undefined);
+        // A different tab or teammate may already be running this agent. Attach to that run; never retry the POST.
+        const activeRun = response.status === 409 && isRecord(value) && typeof value.run_id === 'string' && value.run_id;
+        if (!response.ok && !activeRun) throw new Error(`Could not start the defense loop (${response.status}).`);
+        if (!isRecord(value) || typeof value.run_id !== 'string' || !value.run_id) throw new Error('The server did not return a run ID.');
+        id = value.run_id;
+      }
       if (generation.current !== current) return;
-      const id = value.run_id;
       setRunId(id);
+      setPreviousRun(id);
+      try { sessionStorage.setItem('albert-last-run', id); } catch { /* Storage is optional; live observation still works. */ }
       setStatus('running');
       const events = new EventSource(`/api/loop/${encodeURIComponent(id)}/events`);
       source.current = events;
@@ -149,5 +158,9 @@ export function useDefenseRun() {
       setError(errorMessage(cause));
     }
   }, [clearReconnectTimer]);
-  return { ...state, status, error, runId, start, busy: status === 'starting' || status === 'running' };
+  const activeRun = typeof active.data?.run_id === 'string' && active.data.run_id ? active.data.run_id : undefined;
+  const resumableRun = activeRun ?? previousRun;
+  return { ...state, status, error, runId, activeRun, resumableRun, activeCheckError: active.error,
+    start: () => begin(), observe: () => resumableRun ? begin(resumableRun) : Promise.resolve(),
+    busy: status === 'starting' || status === 'running' };
 }

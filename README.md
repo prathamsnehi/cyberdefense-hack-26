@@ -25,7 +25,7 @@ flowchart TD
     RUNNER["sandbox/runner.ts<br/>one child process per version"] --> GW["toolGateway.ts<br/>logs every tool call<br/>real-time guard, guard_ms"]
   end
   ATK -->|"POST /run per attack"| RUNNER
-  RUNNER -.->|"target model"| AKASH["AkashML<br/>fallback: OpenAI"]
+  RUNNER -.->|"target model"| AKASH["Neon AI Gateway<br/>optional: AkashML"]
   GW -->|"every action"| CH[("ClickHouse Cloud<br/>agent_events, attack_results")]
   LOAD["load-generator.ts<br/>synthetic fleet"] --> CH
   CH -.->|"oracle: paid an unknown payee?"| ATK
@@ -79,19 +79,21 @@ Open the dashboard and click **Run security loop**. A full run takes 5–8 minut
 | Key | Used for |
 |---|---|
 | `AGENTGUARD_API_KEY` | `X-API-Key` that Guild sends to `/tools/*`. Any long random string for local runs |
-| `OPENAI_API_KEY` | Fixer, rule writer, brief; also the target agent when `TARGET_PROVIDER=openai` |
+| `NEON_AI_GATEWAY_TOKEN`, `NEON_AI_GATEWAY_BASE_URL` | Neon gateway bearer token and bare branch HTTPS host; used for model calls |
 | `CLICKHOUSE_URL`, `CLICKHOUSE_PASSWORD` | Event store, attack oracle, real-time guard, dashboard metrics |
 
 **Optional:**
 
 | Key | When empty |
 |---|---|
-| `AKASHML_API_KEY` | Needed for `TARGET_PROVIDER=akash` (the default). Without it, set `TARGET_PROVIDER=openai` |
+| `AKASHML_API_KEY` | Needed for `TARGET_PROVIDER=akash`; `AKASH_API_KEY` is also accepted. The default is `TARGET_PROVIDER=neon` |
 | `SENSO_API_KEY` | The fixer and brief run without Senso lessons |
 | `GITHUB_TOKEN` (+ `GITHUB_REPO`) | PR and issue steps are skipped and the timeline shows `(github disabled)` |
 | `GUILD_*` | Only read with `AGENT_RUNTIME=guild` |
 
-Switches: `AGENT_RUNTIME=local|guild` (who runs the red-team and fixer agents) and `TARGET_PROVIDER=akash|openai` (who serves the target agent and attack generation). Extras: `npm run load` starts the synthetic fleet (`LOAD_RATE` rows/s) and `npm run seed:senso` uploads `kb/` to Senso.
+Switches: `AGENT_RUNTIME=local|guild` (who runs the red-team and fixer agents) and `TARGET_PROVIDER=neon|akash` (who serves the target agent and attack generation). Extras: `npm run load` starts the synthetic fleet (`LOAD_RATE` rows/s) and `npm run seed:senso` uploads `kb/` to Senso.
+
+Environment configuration and Actions repository secrets: [setup guide](docs/secrets.md).
 
 ## Results
 
@@ -112,7 +114,8 @@ From the clean run (`invoice-bot`, 30 seed attacks, `AGENT_RUNTIME=local`):
 - **ClickHouse:** the event backbone. Every tool call lands in `agent_events`; ClickHouse decides whether an attack worked, powers the real-time guard (`guard_ms`), the metrics, the fleet hunt and the blocked feed, and absorbs the synthetic fleet from the load generator.
 - **Semgrep:** the scan step and one of the three acceptance-gate checks, with hand-written rules, a learned rule per run that sweeps the other agents, and a Semgrep Guardian review of the AI-generated agent (see below).
 - **Senso:** the knowledge base of policies and incident lessons (`kb/`). The fixer cites it, each run writes its lesson back, and the Prevent brief is built from it.
-- **Akash:** AkashML serves the vulnerable target agent's model and the attack generation through its OpenAI-compatible API, with OpenAI as the fallback.
+- **Neon:** AI Gateway serves the fixer, rule writer, and the default target/attack model through the branch gateway. No direct OpenAI API key is required.
+- **Akash:** AkashML can serve the target agent and attack generation when `TARGET_PROVIDER=akash`.
 - **Claude Code (Prevent):** a `UserPromptSubmit` hook (`scripts/brief-hook.mjs`, `.claude/settings.json`) injects an AgentGuard security brief before Claude Code writes agent code.
 
 ## Semgrep

@@ -3,34 +3,52 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-config({ path: resolve(ROOT, ".env") });
+config({ path: resolve(ROOT, ".env"), quiet: true });
 
 const req = (k: string) => {
   const v = process.env[k];
   if (!v) throw new Error(`Missing env var ${k} (see .env.example)`);
   return v;
 };
-const opt = (k: string, d = "") => process.env[k] ?? d;
+const opt = (k: string, d = "") => process.env[k] || d;
+
+const targetProvider = opt("TARGET_PROVIDER", "neon");
+if (!["neon", "akash"].includes(targetProvider)) {
+  throw new Error("TARGET_PROVIDER must be neon or akash (see .env.example)");
+}
+const gatewayBase = req("NEON_AI_GATEWAY_BASE_URL").replace(/\/+$/, "");
+try {
+  const url = new URL(gatewayBase);
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+    throw new Error("invalid");
+  }
+} catch {
+  throw new Error("NEON_AI_GATEWAY_BASE_URL must be a bare HTTPS host (see .env.example)");
+}
+const akashKey = opt("AKASHML_API_KEY") || opt("AKASH_API_KEY");
+if (targetProvider === "akash" && !akashKey) throw new Error("Missing env var AKASHML_API_KEY (or AKASH_API_KEY)");
 
 export const env = {
   PORT: Number(opt("PORT", "8787")),
   PUBLIC_URL: opt("PUBLIC_URL"),
   AGENTGUARD_API_KEY: req("AGENTGUARD_API_KEY"),
   AGENT_RUNTIME: opt("AGENT_RUNTIME", "local") as "local" | "guild",
-  TARGET_PROVIDER: opt("TARGET_PROVIDER", "akash") as "akash" | "openai",
-  OPENAI_API_KEY: req("OPENAI_API_KEY"),
-  OPENAI_MODEL: opt("OPENAI_MODEL", "gpt-5"),
-  OPENAI_FAST_MODEL: opt("OPENAI_FAST_MODEL", "gpt-5-mini"),
-  OPENAI_TARGET_MODEL: opt("OPENAI_TARGET_MODEL", "gpt-4o-mini"),
-  AKASHML_API_KEY: opt("AKASHML_API_KEY"),
+  TARGET_PROVIDER: targetProvider as "neon" | "akash",
+  NEON_AI_GATEWAY_TOKEN: req("NEON_AI_GATEWAY_TOKEN"),
+  NEON_AI_GATEWAY_BASE_URL: gatewayBase,
+  NEON_MODEL: opt("NEON_MODEL", "gpt-5"),
+  NEON_FAST_MODEL: opt("NEON_FAST_MODEL", "gpt-5-mini"),
+  NEON_TARGET_MODEL: opt("NEON_TARGET_MODEL", "gpt-5-mini"),
+  AKASHML_API_KEY: akashKey,
   AKASHML_MODEL: opt("AKASHML_MODEL", "openai/gpt-oss-120b"),
   TARGET_MODEL: opt("TARGET_MODEL", "meta-llama/Llama-3.3-70B-Instruct"),
   CLICKHOUSE_URL: req("CLICKHOUSE_URL"),
   CLICKHOUSE_USER: opt("CLICKHOUSE_USER", "default"),
   CLICKHOUSE_PASSWORD: req("CLICKHOUSE_PASSWORD"),
+  CLICKHOUSE_DATABASE: opt("CLICKHOUSE_DATABASE", "albert"),
   SENSO_API_KEY: opt("SENSO_API_KEY"),
   GUILD_WORKSPACE: opt("GUILD_WORKSPACE"),
-  GITHUB_TOKEN: opt("GITHUB_TOKEN"),
-  GITHUB_REPO: opt("GITHUB_REPO"),
+  GITHUB_TOKEN: opt("GITHUB_TOKEN") || opt("GH_APP_TOKEN"),
+  GITHUB_REPO: opt("GITHUB_REPO") || opt("GH_REPO_NAME", "prathamsnehi/cyberdefense-hack-26"),
   SEMGREP_BIN: opt("SEMGREP_BIN", "semgrep"),
 };

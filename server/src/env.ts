@@ -29,7 +29,7 @@ export const env = {
   OPENAI_MODEL: opt("OPENAI_MODEL", "gpt-5"),
   OPENAI_FAST_MODEL: opt("OPENAI_FAST_MODEL", "gpt-5-mini"),
   OPENAI_TARGET_MODEL: opt("OPENAI_TARGET_MODEL", "gpt-4o-mini"),
-  AKASHML_API_KEY: opt("AKASHML_API_KEY"),
+  AKASHML_API_KEY: opt("AKASHML_API_KEY", opt("AKASH_API_KEY")),
   AKASHML_MODEL: opt("AKASHML_MODEL", "openai/gpt-oss-120b"),
   TARGET_MODEL: opt("TARGET_MODEL", "meta-llama/Llama-3.3-70B-Instruct"),
   CLICKHOUSE_URL: req("CLICKHOUSE_URL"),

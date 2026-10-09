@@ -1,12 +1,11 @@
 import { it, expect, vi, beforeEach } from 'vitest';
-const client = vi.hoisted(() => ({ insert: vi.fn(), query: vi.fn() }));
-vi.mock('@clickhouse/client', () => ({ createClient: vi.fn(() => client) }));
+const client = vi.hoisted(() => ({ insert: vi.fn(), query: vi.fn(), options: undefined as unknown }));
+vi.mock('@clickhouse/client', () => ({ createClient: (options: unknown) => { client.options = options; return client; } }));
 import { insertEvents, timedQuery, insertRows } from '../src/clickhouse';
-import { createClient } from '@clickhouse/client';
 import type { AgentEvent } from '../src/contracts';
 beforeEach(() => { client.insert.mockReset(); client.query.mockReset(); });
 it('configures albert and acknowledged writes with consistent reads', () => {
-  expect(createClient).toHaveBeenCalledWith(expect.objectContaining({ database: 'albert', clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1, select_sequential_consistency: '1' } }));
+  expect(client.options).toMatchObject({ database: 'albert', clickhouse_settings: { async_insert: 0, wait_for_async_insert: 1, select_sequential_consistency: '1' } });
 });
 it('does not resolve before insert acknowledgement, and never retries an error', async () => {
   let acknowledge!: () => void;

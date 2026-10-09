@@ -13,7 +13,7 @@ it('empty metrics use genuine zero counts and null unmeasured latency', async ()
   expect(query.mock.calls[1][0]).toContain('FROM learned_rules');
 });
 it('keeps failure unavailable rather than converting failed queries into zero', async () => {
-  query.mockRejectedValue(new Error('offline'));
+  query.mockImplementation(async () => { throw new Error('offline'); });
   await expect(metrics()).rejects.toThrow('offline');
 });
 it('binds fleet filters and retains actual ClickHouse query statistics', async () => {

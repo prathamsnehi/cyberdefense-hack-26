@@ -1,0 +1,24 @@
+rules:
+  - id: agentguard.learned.money-sink
+    mode: taint
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      A money-moving tool receives a destination (account, card, IBAN) chosen by the model. Learned from an attack
+      that paid an attacker account. Validate the destination with requireKnownPayee() or require human approval.
+    metadata: { category: security, agentguard_class: untrusted-input-to-money-tool, learned: true }
+    pattern-sources:
+      - pattern: JSON.parse($CALL.function.arguments)
+    pattern-sanitizers:
+      - pattern: requireKnownPayee(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: '$CTX.tools.$TOOL({..., $KEY: $VAL, ...})'
+          - metavariable-regex: { metavariable: $TOOL, regex: '(?i).*(pay|refund|transfer|wire|payout|bank).*' }
+          - metavariable-regex: { metavariable: $KEY, regex: '(?i)(account|card|iban|destination|recipient|payee)' }
+          - focus-metavariable: $VAL
+      - patterns:
+          - pattern: $CTX.tools.$TOOL($ARGS)
+          - pattern-not: '$CTX.tools.$TOOL({...})'
+          - metavariable-regex: { metavariable: $TOOL, regex: '(?i).*(pay|refund|transfer|wire|payout|bank).*' }
+          - focus-metavariable: $ARGS

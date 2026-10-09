@@ -42,9 +42,21 @@ test("all sections render without horizontal overflow", async ({ page }, testInf
   }
   const dimensions = await page.evaluate(() => ({
     content: document.documentElement.scrollWidth,
-    viewport: window.innerWidth,
+    viewport: document.documentElement.clientWidth,
   }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+  const viewportWidth = page.viewportSize()!.width;
+  expect(dimensions.viewport).toBe(viewportWidth);
+  expect(dimensions.content).toBeLessThanOrEqual(viewportWidth);
+  if (testInfo.project.name === "mobile") {
+    const comparison = page.locator('#compare [role="region"]');
+    const scrollLeft = await comparison.evaluate((element) => {
+      element.scrollLeft = element.scrollWidth;
+      return element.scrollLeft;
+    });
+    expect(scrollLeft).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewportWidth);
+    await comparison.evaluate((element) => { element.scrollLeft = 0; });
+  }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: testInfo.outputPath(`${testInfo.project.name}-full.png`),

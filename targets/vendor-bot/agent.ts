@@ -59,9 +59,9 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
     if (!msg.tool_calls || msg.tool_calls.length === 0) return;
 
     for (const call of msg.tool_calls) {
-      const args = JSON.parse(call.function.arguments);
       let result: string;
       try {
+        const args = JSON.parse(call.function.arguments);
         switch (call.function.name) {
           case "updateBankDetails":
             result = await ctx.tools.updateBankDetails({ vendor: args.vendor, iban: args.iban });

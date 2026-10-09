@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock('../src/queries', () => ({ metrics: async () => ({ total_events: 0 }) }));
 import { app, lazy } from "../src/index";
 
 // AWS-30 Scenario: npm run dev boots with stubs and /health answers {"ok":true}

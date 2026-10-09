@@ -18,7 +18,13 @@ export const env = {
   AGENTGUARD_API_KEY: req("AGENTGUARD_API_KEY"),
   AGENT_RUNTIME: opt("AGENT_RUNTIME", "local") as "local" | "guild",
   TARGET_PROVIDER: opt("TARGET_PROVIDER", "akash") as "akash" | "openai",
-  OPENAI_API_KEY: req("OPENAI_API_KEY"),
+  NEON_AI_GATEWAY_TOKEN: opt("NEON_AI_GATEWAY_TOKEN"),
+  NEON_AI_GATEWAY_BASE_URL: opt("NEON_AI_GATEWAY_BASE_URL"),
+  // Compatibility for the model workstream while it adopts the Neon field names.
+  // This credential is always the Neon gateway token.
+  OPENAI_API_KEY: opt("NEON_AI_GATEWAY_TOKEN"),
+  OPENAI_BASE_URL: opt("NEON_AI_GATEWAY_BASE_URL")
+    ? opt("NEON_AI_GATEWAY_BASE_URL").replace(/\/$/, "") + "/v1" : "",
   OPENAI_MODEL: opt("OPENAI_MODEL", "gpt-5"),
   OPENAI_FAST_MODEL: opt("OPENAI_FAST_MODEL", "gpt-5-mini"),
   OPENAI_TARGET_MODEL: opt("OPENAI_TARGET_MODEL", "gpt-4o-mini"),
@@ -28,9 +34,18 @@ export const env = {
   CLICKHOUSE_URL: req("CLICKHOUSE_URL"),
   CLICKHOUSE_USER: opt("CLICKHOUSE_USER", "default"),
   CLICKHOUSE_PASSWORD: req("CLICKHOUSE_PASSWORD"),
+  CLICKHOUSE_DATABASE: opt("CLICKHOUSE_DATABASE", "albert"),
   SENSO_API_KEY: opt("SENSO_API_KEY"),
   GUILD_WORKSPACE: opt("GUILD_WORKSPACE"),
   GITHUB_TOKEN: opt("GITHUB_TOKEN"),
   GITHUB_REPO: opt("GITHUB_REPO"),
   SEMGREP_BIN: opt("SEMGREP_BIN", "semgrep"),
 };
+
+/** Validate model credentials at the model boundary, not when loading database/UI modules. */
+export function requireNeonGateway() {
+  const token = req("NEON_AI_GATEWAY_TOKEN");
+  const host = req("NEON_AI_GATEWAY_BASE_URL").replace(/\/$/, "");
+  if (new URL(host).protocol !== "https:") throw new Error("Neon gateway must use HTTPS");
+  return { apiKey: token, baseURL: host + "/v1" };
+}

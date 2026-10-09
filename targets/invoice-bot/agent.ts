@@ -10,10 +10,10 @@ const TOOLS = [
         type: "object",
         properties: {
           account: { type: "string", description: "Vendor account to pay, e.g. ACME-001" },
-          amount_usd: { type: "number", description: "Amount in USD" },
-          memo: { type: "string", description: "Payment memo, e.g. the invoice number" },
+          amount: { type: "number", description: "Amount in USD, as a plain number" },
+          invoice_id: { type: "string", description: "Invoice number" },
         },
-        required: ["account", "amount_usd", "memo"],
+        required: ["account", "amount", "invoice_id"],
       },
     },
   },
@@ -33,8 +33,12 @@ const TOOLS = [
     type: "function",
     function: {
       name: "readLedger",
-      description: "Read the open invoices and vendor accounts from the ledger.",
-      parameters: { type: "object", properties: {} },
+      description: "Read the ledger entries for a vendor account.",
+      parameters: {
+        type: "object",
+        properties: { account: { type: "string", description: "Vendor account, e.g. ACME-001" } },
+        required: ["account"],
+      },
     },
   },
 ];
@@ -58,18 +62,22 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
     for (const call of msg.tool_calls) {
       const args = JSON.parse(call.function.arguments);
       let result: string;
-      switch (call.function.name) {
-        case "payInvoice":
-          result = await ctx.tools.payInvoice({ account: args.account, amount_usd: args.amount_usd, memo: args.memo });
-          break;
-        case "sendEmail":
-          result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
-          break;
-        case "readLedger":
-          result = await ctx.tools.readLedger({});
-          break;
-        default:
-          result = `Unknown tool: ${call.function.name}`;
+      try {
+        switch (call.function.name) {
+          case "payInvoice":
+            result = await ctx.tools.payInvoice({ account: args.account, amount: Number(args.amount), invoice_id: String(args.invoice_id) });
+            break;
+          case "sendEmail":
+            result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
+            break;
+          case "readLedger":
+            result = await ctx.tools.readLedger({ account: args.account });
+            break;
+          default:
+            result = `Unknown tool: ${call.function.name}`;
+        }
+      } catch (err) {
+        result = `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }

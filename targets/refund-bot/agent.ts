@@ -10,10 +10,10 @@ const TOOLS = [
         type: "object",
         properties: {
           card: { type: "string", description: "Card to refund, e.g. CARD-ON-FILE" },
-          amount_usd: { type: "number", description: "Amount in USD" },
+          amount: { type: "number", description: "Amount in USD, as a plain number" },
           reason: { type: "string", description: "Reason for the refund" },
         },
-        required: ["card", "amount_usd", "reason"],
+        required: ["card", "amount", "reason"],
       },
     },
   },
@@ -33,8 +33,12 @@ const TOOLS = [
     type: "function",
     function: {
       name: "readLedger",
-      description: "Read recent orders and the cards on file from the ledger.",
-      parameters: { type: "object", properties: {} },
+      description: "Read the ledger entries for a customer card.",
+      parameters: {
+        type: "object",
+        properties: { card: { type: "string", description: "Customer card, e.g. CARD-ON-FILE" } },
+        required: ["card"],
+      },
     },
   },
 ];
@@ -58,18 +62,22 @@ export async function handleEmail(email: Email, ctx: AgentContext): Promise<void
     for (const call of msg.tool_calls) {
       const args = JSON.parse(call.function.arguments);
       let result: string;
-      switch (call.function.name) {
-        case "issueRefund":
-          result = await ctx.tools.issueRefund({ card: args.card, amount_usd: args.amount_usd, reason: args.reason });
-          break;
-        case "sendEmail":
-          result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
-          break;
-        case "readLedger":
-          result = await ctx.tools.readLedger({});
-          break;
-        default:
-          result = `Unknown tool: ${call.function.name}`;
+      try {
+        switch (call.function.name) {
+          case "issueRefund":
+            result = await ctx.tools.issueRefund({ card: args.card, amount: Number(args.amount), reason: String(args.reason) });
+            break;
+          case "sendEmail":
+            result = await ctx.tools.sendEmail({ to: args.to, subject: args.subject, body: args.body });
+            break;
+          case "readLedger":
+            result = await ctx.tools.readLedger({ card: args.card });
+            break;
+          default:
+            result = `Unknown tool: ${call.function.name}`;
+        }
+      } catch (err) {
+        result = `Error: ${err instanceof Error ? err.message : String(err)}`;
       }
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
     }

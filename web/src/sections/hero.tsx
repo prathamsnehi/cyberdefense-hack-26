@@ -1,15 +1,20 @@
+import "@/styles/hero.css";
+
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/brand/eyebrow";
-import { Logo } from "@/components/brand/logo";
 import { Rule } from "@/components/brand/rule";
 import { cn } from "@/lib/utils";
 import { GITHUB_URL } from "@/sections/nav";
 
 const STEPS = ["Prevent", "Detect", "Prove", "Learn", "Watch"] as const;
 const CYCLE_MS = 1600;
+
+const HERO_SIZES = "(min-width: 768px) 70vw, 100vw";
+const AVIF_SRCSET = "/hero/torus-640.avif 640w, /hero/torus-960.avif 960w, /hero/torus-1536.avif 1536w";
+const WEBP_SRCSET = "/hero/torus-640.webp 640w, /hero/torus-960.webp 960w, /hero/torus-1536.webp 1536w";
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
@@ -130,69 +135,100 @@ function LoopStrip() {
   );
 }
 
+/**
+ * Background art: glass torus with an orange energy ring.
+ * Desktop: anchored right, about 65% of the hero width, behind a left-to-right scrim.
+ * Mobile: smaller art block at the top, dimmed, behind a strong vertical scrim.
+ */
+function HeroArt() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+      <div className="absolute -right-[18vw] top-14 aspect-[3/2] w-[125vw] opacity-100 md:inset-y-0 md:right-0 md:aspect-auto md:h-full md:w-[65%] md:opacity-100">
+        <div className="hero-art-enter h-full w-full">
+          <div className="hero-art-drift relative h-full w-full">
+            <picture className="block h-full w-full">
+              <source type="image/avif" srcSet={AVIF_SRCSET} sizes={HERO_SIZES} />
+              <source type="image/webp" srcSet={WEBP_SRCSET} sizes={HERO_SIZES} />
+              <img
+                src="/hero/torus-960.webp"
+                width={1536}
+                height={1024}
+                alt=""
+                aria-hidden="true"
+                decoding="async"
+                loading="eager"
+                fetchPriority="high"
+                className="h-full w-full object-cover object-center md:object-[right_center]"
+              />
+            </picture>
+            <div className="hero-glow" />
+          </div>
+        </div>
+      </div>
+
+      <div className="hero-scrim-y absolute inset-0 md:hidden" />
+      <div className="hero-scrim-x absolute inset-0 hidden md:block" />
+      <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-background to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-background to-transparent" />
+    </div>
+  );
+}
+
 export function Hero() {
   return (
     <section
       id="top"
       aria-labelledby="hero-title"
-      className="relative isolate overflow-hidden pb-section-sm pt-20 md:pt-28"
+      className="hero-root relative isolate flex flex-col justify-end overflow-hidden pb-section-sm pt-40 sm:pt-56 md:justify-center md:pt-24"
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-        <div className="bg-grid absolute inset-0" />
-        <div className="absolute left-1/2 top-0 h-96 w-[48rem] max-w-full -translate-x-1/2 bg-radial from-accent-brand-subtle to-transparent to-70%" />
-        <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-background to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-64 bg-linear-to-t from-background to-transparent" />
-        <div className="absolute inset-y-0 left-0 hidden w-32 bg-linear-to-r from-background to-transparent md:block" />
-        <div className="absolute inset-y-0 right-0 hidden w-32 bg-linear-to-l from-background to-transparent md:block" />
-      </div>
+      <HeroArt />
 
-      <div className="mx-auto flex w-full max-w-page flex-col gap-8 px-gutter">
-        <div className="flex flex-col gap-6">
-          <Logo variant="lockup" size="xl" animate delay={0} stagger={50} />
-          <div className="anim-fade-up flex items-center gap-3" style={{ animationDelay: "140ms" }}>
+      <div className="mx-auto w-full max-w-page px-gutter">
+        <div className="flex flex-col gap-8 md:max-w-[min(60%,44rem)]">
+          <div className="anim-fade-up flex items-center gap-3" style={{ animationDelay: "80ms" }}>
             <Rule width="sm" />
             <Eyebrow>Cyberdefense Hackathon #SFTechWeek</Eyebrow>
           </div>
-        </div>
 
-        <h1
-          id="hero-title"
-          className="anim-fade-up max-w-5xl font-display text-display-lg font-bold uppercase text-balance text-foreground"
-          style={{ animationDelay: "200ms" }}
-        >
-          One bad email can take over your agent.
-        </h1>
+          <h1
+            id="hero-title"
+            className="anim-fade-up font-display text-display-lg font-bold uppercase text-balance text-foreground"
+            style={{ animationDelay: "160ms" }}
+          >
+            One bad email can take over your agent.
+          </h1>
 
-        <p
-          className="anim-fade-up max-w-prose text-lede text-pretty text-fg-secondary"
-          style={{ animationDelay: "260ms" }}
-        >
-          Companies are handing AI agents their email, their code and their money. That is
-          useful. It also means a single email can steer what the agent does.{" "}
-          <span className="font-medium text-foreground">We close the loop.</span>
-        </p>
+          <p
+            className="anim-fade-up max-w-prose text-lede text-pretty text-fg-secondary"
+            style={{ animationDelay: "240ms" }}
+          >
+            Companies are handing AI agents their email, their code and their money. That is
+            useful. It also means a single email can steer what the agent does.{" "}
+            <span className="font-medium text-foreground">We close the loop.</span>
+          </p>
 
-        <div className="anim-fade-up" style={{ animationDelay: "320ms" }}>
-          <LoopStrip />
-        </div>
+          <div className="anim-fade-up" style={{ animationDelay: "320ms" }}>
+            <LoopStrip />
+          </div>
 
-        <div
-          className="anim-fade-up flex flex-wrap items-center gap-3"
-          style={{ animationDelay: "380ms" }}
-        >
-          <Button asChild size="lg">
-            <a href="#loop">
-              See the loop
-              <ArrowDown aria-hidden="true" />
-            </a>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-              View on GitHub
-              <ArrowUpRight aria-hidden="true" />
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
-          </Button>
+          <div
+            className="anim-fade-up flex flex-wrap items-center gap-3"
+            style={{ animationDelay: "380ms" }}
+          >
+            <Button asChild size="lg">
+              <a href="#loop">
+                See the loop
+                <ArrowDown aria-hidden="true" />
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                View on GitHub
+                <ArrowUpRight aria-hidden="true" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
     </section>

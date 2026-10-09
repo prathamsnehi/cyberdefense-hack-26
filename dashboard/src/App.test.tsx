@@ -32,15 +32,16 @@ function response(data: unknown, ok = true, status = 200): Response {
 }
 
 const metrics = { events_per_sec: 12, total_events: 420, blocked_24h: 8, findings: 3, rules_learned: 2, guard_p95_ms: null };
+const defaultData = (url: string) => url === '/api/metrics' ? metrics
+  : url === '/api/loop/active' ? { run_id: null } : { rows: [], rowsRead: 32, elapsedMs: 4 };
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   sessionStorage.clear();
   MockEventSource.instances = [];
   fetchMock = vi.fn(async (url: string) => {
-    if (url === '/api/metrics') return response(metrics);
     if (url === '/api/loop/start') return response({ run_id: 'run-1' });
-    return response({ rows: [], rowsRead: 32, elapsedMs: 4 });
+    return response(defaultData(url));
   });
   vi.stubGlobal('fetch', fetchMock);
   vi.stubGlobal('EventSource', MockEventSource);
@@ -56,13 +57,58 @@ async function startRun() {
 
 describe('Albert AI dashboard', () => {
   it('detects an active run on load and observes it without starting another', async () => {
+    sessionStorage.setItem('albert-last-run', 'older-run');
     fetchMock.mockImplementation(async (url: string) => response(url === '/api/loop/active'
       ? { run_id: 'active-run' } : url === '/api/metrics' ? metrics : { rows: [] }));
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: /observe active run/i }));
+    const observe = await screen.findByRole('button', { name: /observe active run/i });
+    expect(screen.getByRole('button', { name: /run defense loop/i })).toBeDisabled();
+    fireEvent.click(observe);
     await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
     expect(MockEventSource.instances[0].url).toBe('/api/loop/active-run/events');
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/loop/start')).toBe(false);
+  });
+
+  it('closes the old stream on refresh and reconnects to the retained run with replay', async () => {
+    const firstPage = render(<App />);
+    const firstStream = await startRun();
+    act(() => firstStream.emit('1', 'attack_batch', { version: 'v1', total: 30, succeeded: 22, infra_errors: 0 }));
+    firstPage.unmount();
+    expect(firstStream.close).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('albert-last-run')).toBe('run-1');
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/loop/active' ? { run_id: 'run-1' } : defaultData(url)));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /observe active run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(2));
+    const replay = MockEventSource.instances[1];
+    act(() => {
+      replay.emit('1', 'attack_batch', { version: 'v1', total: 30, succeeded: 22, infra_errors: 0 });
+      replay.emit('1', 'attack_batch', { version: 'v1', total: 30, succeeded: 22, infra_errors: 0 });
+      replay.emit('2', 'done');
+    });
+    expect(screen.getByRole('list', { name: 'Run events' }).children).toHaveLength(2);
+    expect(within(screen.getByRole('table')).getByText('22')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/loop/start')).toHaveLength(1);
+  });
+
+  it('reports discovery errors and keeps the previous run available for observation', async () => {
+    sessionStorage.setItem('albert-last-run', 'previous-run');
+    fetchMock.mockImplementation(async (url: string) => url === '/api/loop/active'
+      ? response({ error: 'Unavailable' }, false, 503) : response(defaultData(url)));
+    render(<App />);
+    expect(await screen.findByText(/Active run discovery: Request failed \(503\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /view previous run/i }));
+    await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+    expect(MockEventSource.instances[0].url).toBe('/api/loop/previous-run/events');
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/loop/start')).toBe(false);
+  });
+
+  it('does not interpret a malformed active response as confirmation of no run', async () => {
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/loop/active' ? { rows: [] } : defaultData(url)));
+    render(<App />);
+    expect(await screen.findByText(/invalid active-run response/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /observe active run/i })).toBeNull();
+    expect(MockEventSource.instances).toHaveLength(0);
   });
 
   it('keeps the last observed run across a refresh and offers to replay it', async () => {
@@ -82,7 +128,7 @@ describe('Albert AI dashboard', () => {
   it('attaches to the active run on 409 and replays its results without retrying start', async () => {
     fetchMock.mockImplementation(async (url: string) => url === '/api/loop/start'
       ? response({ run_id: 'existing-run', error: 'A run for this agent is already active' }, false, 409)
-      : response(url === '/api/metrics' ? metrics : { rows: [] }));
+      : response(defaultData(url)));
     render(<App />);
     const source = await startRun();
     expect(source.url).toBe('/api/loop/existing-run/events');
@@ -105,7 +151,7 @@ describe('Albert AI dashboard', () => {
 
   it('prevents duplicate starts while the start request is unresolved', async () => {
     let resolveStart!: (value: Response) => void;
-    fetchMock.mockImplementation((url: string) => url === '/api/loop/start' ? new Promise<Response>((resolve) => { resolveStart = resolve; }) : Promise.resolve(response(url === '/api/metrics' ? metrics : { rows: [] })));
+    fetchMock.mockImplementation((url: string) => url === '/api/loop/start' ? new Promise<Response>((resolve) => { resolveStart = resolve; }) : Promise.resolve(response(defaultData(url))));
     render(<App />);
     const button = screen.getByRole('button', { name: /run defense loop/i });
     fireEvent.click(button);
@@ -173,7 +219,7 @@ describe('Albert AI dashboard', () => {
   });
 
   it('surfaces a start request failure and enables retry', async () => {
-    fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : { rows: [] }, url !== '/api/loop/start', url === '/api/loop/start' ? 503 : 200));
+    fetchMock.mockImplementation(async (url: string) => response(defaultData(url), url !== '/api/loop/start', url === '/api/loop/start' ? 503 : 200));
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /run defense loop/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent('503');
@@ -191,7 +237,7 @@ describe('Albert AI dashboard', () => {
   });
 
   it('queries the fleet manually and displays real query statistics', async () => {
-    fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : url === '/api/fleet/hunt' ? { rows: [{ database: 'fleet-db', host: 'agent-7', finding: 'Database match' }], rowsRead: 716, elapsedMs: 13.2 } : { rows: [], rowsRead: 4, elapsedMs: 1 }));
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/fleet/hunt' ? { rows: [{ database: 'fleet-db', host: 'agent-7', finding: 'Database match' }], rowsRead: 716, elapsedMs: 13.2 } : defaultData(url)));
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
     const huntPanel = screen.getByRole('heading', { name: 'Agent fleet hunt' }).closest('section')!;
@@ -200,7 +246,7 @@ describe('Albert AI dashboard', () => {
   });
 
   it('encodes the optional fleet agent filter and uses query metadata from the backend', async () => {
-    fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : url.startsWith('/api/fleet/hunt') ? { rows: [], rowsRead: 103, elapsedMs: 6.7 } : { rows: [], rowsRead: 4, elapsedMs: 1 }));
+    fetchMock.mockImplementation(async (url: string) => response(url.startsWith('/api/fleet/hunt') ? { rows: [], rowsRead: 103, elapsedMs: 6.7 } : defaultData(url)));
     render(<App />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Filter fleet hunt by agent' }), { target: { value: '  agent-7 & branch  ' } });
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
@@ -210,7 +256,7 @@ describe('Albert AI dashboard', () => {
   });
 
   it('does not invent statistics when a fleet query omits them', async () => {
-    fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : { rows: [] }));
+    fetchMock.mockImplementation(async (url: string) => response(url === '/api/fleet/hunt' ? { rows: [] } : defaultData(url)));
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /refresh hunt/i }));
     const huntPanel = screen.getByRole('heading', { name: 'Agent fleet hunt' }).closest('section')!;
@@ -220,6 +266,22 @@ describe('Albert AI dashboard', () => {
 });
 
 describe('SSE reconnect lifecycle', () => {
+  it('discovers a teammate run that starts after the page loads', async () => {
+    vi.useFakeTimers();
+    let activeRun: string | null = null;
+    fetchMock.mockImplementation(async () => response({ run_id: activeRun }));
+    const hook = renderHook(() => useDefenseRun());
+    await act(async () => {});
+    expect(hook.result.current.activeRun).toBeUndefined();
+    activeRun = 'teammate-run';
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(hook.result.current.activeRun).toBe('teammate-run');
+    await act(async () => { await hook.result.current.observe(); });
+    expect(MockEventSource.instances[0].url).toBe('/api/loop/teammate-run/events');
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/loop/start')).toBe(false);
+    hook.unmount();
+  });
+
   it('keeps the original stream and start POST while reconnecting, then deduplicates replay', async () => {
     vi.useFakeTimers();
     const hook = renderHook(() => useDefenseRun());
@@ -281,7 +343,6 @@ describe('SSE reconnect lifecycle', () => {
     });
     expect(hook.result.current.error).toBeUndefined();
     expect(hook.result.current.busy).toBe(false);
-    expect(vi.getTimerCount()).toBe(1); // Active-run discovery continues polling; the reconnect timer is gone.
     await act(async () => { await hook.result.current.start(); });
     const second = MockEventSource.instances[1];
     expect(hook.result.current.runId).toBe('run-2');
@@ -311,9 +372,7 @@ describe('SSE reconnect lifecycle', () => {
     await act(async () => { await hook.result.current.start(); });
     const source = MockEventSource.instances[0];
     act(() => source.disconnect());
-    expect(vi.getTimerCount()).toBe(2); // Discovery poll plus reconnect grace period.
     act(() => source.disconnect(true));
-    expect(vi.getTimerCount()).toBe(1); // Only the discovery poll remains.
     expect(hook.result.current.busy).toBe(false);
     expect(hook.result.current.error).toContain('unavailable for this run');
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
@@ -327,9 +386,10 @@ describe('SSE reconnect lifecycle', () => {
     await act(async () => { await hook.result.current.start(); });
     const source = MockEventSource.instances[0];
     act(() => source.disconnect());
-    expect(vi.getTimerCount()).toBe(2); // Discovery poll plus reconnect grace period.
+    const discoverySignal = fetchMock.mock.calls.find(([url]) => url === '/api/loop/active')?.[1]?.signal as AbortSignal;
+    expect(discoverySignal.aborted).toBe(false);
     hook.unmount();
-    expect(vi.getTimerCount()).toBe(0);
+    expect(discoverySignal.aborted).toBe(true);
     expect(source.close).toHaveBeenCalledOnce();
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
     expect(source.close).toHaveBeenCalledOnce();

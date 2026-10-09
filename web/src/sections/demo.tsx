@@ -152,7 +152,6 @@ export function Demo() {
                   aria-selected={selected}
                   aria-controls={`demo-panel-${i}`}
                   tabIndex={selected ? 0 : -1}
-                  aria-hidden={!selected}
                   onClick={() => setActive(i)}
                   className={cn(
                     "relative flex flex-col items-start gap-1 overflow-hidden rounded-md border px-4 py-3 text-left",
@@ -190,6 +189,7 @@ export function Demo() {
                   role="tabpanel"
                   id={`demo-panel-${i}`}
                   aria-labelledby={`demo-tab-${i}`}
+                  aria-hidden={!selected}
                   tabIndex={selected ? 0 : -1}
                   className={cn(
                     "col-start-1 row-start-1 flex flex-col rounded-lg border border-hairline bg-surface-1",

@@ -1,7 +1,7 @@
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { ROOT } from "./env";
-import { chat, extractFence, MODELS, openai } from "./llm";
+import { chat, extractFence, MODELS, neon } from "./llm";
 import { scan } from "./scan";
 import type { Attack } from "./contracts";
 
@@ -18,7 +18,7 @@ export async function learnRule(vulnFile: string, fixedFile: string, vulnCode: s
   await mkdir(resolve(ROOT, "rules/learned"), { recursive: true });
   for (let i = 0; i < 2; i++) {
     try {
-      const yaml = extractFence(await chat(openai, MODELS.fast, RULE_WRITER_SYSTEM,
+      const yaml = extractFence(await chat(neon, MODELS.fast, RULE_WRITER_SYSTEM,
         `VULNERABLE:\n${vulnCode}\n\nFIXED:\n${fixedCode}\n\nATTACK:\n${JSON.stringify(attack?.email ?? {})}`,
         { reasoning_effort: "minimal" }), "yaml");
       // Validate in sandbox/ first so a bad candidate never loads into later scans.

@@ -1,0 +1,292 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/oswald";
+@import "tailwindcss";
+
+/*
+  Albert AI design tokens.
+  Rule: UI consumes tokens only. No raw hex values outside this file.
+
+  Contrast ratios (WCAG 2.x) against --albert-black #0b0b0b:
+    --albert-fg            #fafafa  18.86:1  AA/AAA all text
+    --albert-fg-secondary  #a3a3a3   7.81:1  AA/AAA all text
+    --albert-fg-muted      #8a8a8a   5.70:1  AA all text
+    --albert-accent        #ff4f1f   5.99:1  AA all text (AAA large)
+    --albert-accent-hover  #ff6a3d   6.92:1  AA all text
+    --albert-danger        #ef4444   5.23:1  AA all text
+  Text on accent fill:
+    #0b0b0b on #ff4f1f      5.99:1  AA  (use this for primary buttons)
+    #ffffff on #ff4f1f      3.29:1  large text only (>= 24px, or 18.66px bold)
+  Accent usage: rules, eyebrows, indices, links, key words, primary CTA fill.
+  Never use accent for long body copy.
+*/
+
+:root {
+  color-scheme: dark;
+
+  /* Primitive: surfaces */
+  --albert-black: #0b0b0b;
+  --albert-surface-1: #111111;
+  --albert-surface-2: #171717;
+  --albert-surface-3: #1e1e1e;
+
+  /* Primitive: hairlines (low alpha white) */
+  --albert-hairline: rgb(255 255 255 / 0.08);
+  --albert-hairline-strong: rgb(255 255 255 / 0.14);
+  --albert-grid-line: rgb(255 255 255 / 0.04);
+
+  /* Primitive: text tiers */
+  --albert-fg: #fafafa;
+  --albert-fg-secondary: #a3a3a3;
+  --albert-fg-muted: #8a8a8a;
+
+  /* Primitive: accent */
+  --albert-accent: #ff4f1f;
+  --albert-accent-hover: #ff6a3d;
+  --albert-accent-subtle: rgb(255 79 31 / 0.12);
+  --albert-accent-border: rgb(255 79 31 / 0.32);
+  --albert-on-accent: #0b0b0b;
+
+  /* Primitive: status */
+  --albert-danger: #ef4444;
+
+  /* Semantic (shadcn contract) */
+  --background: var(--albert-black);
+  --foreground: var(--albert-fg);
+  --card: var(--albert-surface-1);
+  --card-foreground: var(--albert-fg);
+  --popover: var(--albert-surface-2);
+  --popover-foreground: var(--albert-fg);
+  --primary: var(--albert-accent);
+  --primary-foreground: var(--albert-on-accent);
+  --secondary: var(--albert-surface-2);
+  --secondary-foreground: var(--albert-fg);
+  --muted: var(--albert-surface-2);
+  --muted-foreground: var(--albert-fg-muted);
+  --accent: var(--albert-surface-3);
+  --accent-foreground: var(--albert-fg);
+  --destructive: var(--albert-danger);
+  --destructive-foreground: var(--albert-black);
+  --border: var(--albert-hairline);
+  --input: var(--albert-hairline-strong);
+  --ring: var(--albert-accent);
+  --radius: 0.375rem;
+
+  /* Type scale: fluid sizes */
+  --type-display-xl: clamp(3rem, 1.6rem + 6vw, 6.5rem);
+  --type-display-lg: clamp(2.5rem, 1.5rem + 4.2vw, 4.75rem);
+  --type-display-md: clamp(2rem, 1.35rem + 2.8vw, 3.5rem);
+  --type-display-sm: clamp(1.5rem, 1.15rem + 1.5vw, 2.25rem);
+  --type-title: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  --type-lede: clamp(1.0625rem, 0.95rem + 0.5vw, 1.25rem);
+  --type-body: 1rem;
+  --type-small: 0.875rem;
+  --type-caption: 0.75rem;
+  --type-eyebrow: 0.75rem;
+
+  /* Type scale: line heights */
+  --leading-display-xl: 0.95;
+  --leading-display-lg: 1;
+  --leading-display-md: 1.05;
+  --leading-display-sm: 1.1;
+  --leading-title: 1.25;
+  --leading-lede: 1.5;
+  --leading-body: 1.6;
+  --leading-small: 1.5;
+  --leading-caption: 1.4;
+  --leading-eyebrow: 1.2;
+
+  /* Type scale: tracking */
+  --tracking-display: 0.005em;
+  --tracking-body: -0.006em;
+  --tracking-eyebrow-value: 0.2em;
+
+  /* Spacing: section rhythm */
+  --section-y: clamp(5rem, 3rem + 8vw, 10rem);
+  --section-y-sm: clamp(3rem, 2rem + 4vw, 5rem);
+  --gutter: clamp(1.25rem, 0.75rem + 2vw, 2.5rem);
+  --page-max: 72rem;
+  --prose-max: 40rem;
+
+  /* Motion: durations */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 400ms;
+  --duration-reveal: 600ms;
+
+  /* Motion: easings */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Easing literals mirror :root so Tailwind generates ease-out, ease-in-out, ease-drawer utilities. */
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@theme inline {
+  /* Semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Brand colors */
+  --color-albert-black: var(--albert-black);
+  --color-surface-1: var(--albert-surface-1);
+  --color-surface-2: var(--albert-surface-2);
+  --color-surface-3: var(--albert-surface-3);
+  --color-hairline: var(--albert-hairline);
+  --color-hairline-strong: var(--albert-hairline-strong);
+  --color-fg: var(--albert-fg);
+  --color-fg-secondary: var(--albert-fg-secondary);
+  --color-fg-muted: var(--albert-fg-muted);
+  --color-accent-brand: var(--albert-accent);
+  --color-accent-brand-hover: var(--albert-accent-hover);
+  --color-accent-brand-subtle: var(--albert-accent-subtle);
+  --color-accent-brand-border: var(--albert-accent-border);
+  --color-on-accent: var(--albert-on-accent);
+
+  /* Fonts */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Oswald Variable", "Arial Narrow", ui-sans-serif, sans-serif;
+
+  /* Type scale */
+  --text-display-xl: var(--type-display-xl);
+  --text-display-xl--line-height: var(--leading-display-xl);
+  --text-display-xl--letter-spacing: var(--tracking-display);
+  --text-display-lg: var(--type-display-lg);
+  --text-display-lg--line-height: var(--leading-display-lg);
+  --text-display-lg--letter-spacing: var(--tracking-display);
+  --text-display-md: var(--type-display-md);
+  --text-display-md--line-height: var(--leading-display-md);
+  --text-display-md--letter-spacing: var(--tracking-display);
+  --text-display-sm: var(--type-display-sm);
+  --text-display-sm--line-height: var(--leading-display-sm);
+  --text-display-sm--letter-spacing: var(--tracking-display);
+  --text-title: var(--type-title);
+  --text-title--line-height: var(--leading-title);
+  --text-lede: var(--type-lede);
+  --text-lede--line-height: var(--leading-lede);
+  --text-lede--letter-spacing: var(--tracking-body);
+  --text-body: var(--type-body);
+  --text-body--line-height: var(--leading-body);
+  --text-body--letter-spacing: var(--tracking-body);
+  --text-small: var(--type-small);
+  --text-small--line-height: var(--leading-small);
+  --text-caption: var(--type-caption);
+  --text-caption--line-height: var(--leading-caption);
+  --text-eyebrow: var(--type-eyebrow);
+  --text-eyebrow--line-height: var(--leading-eyebrow);
+  --text-eyebrow--letter-spacing: var(--tracking-eyebrow-value);
+
+  --tracking-eyebrow: var(--tracking-eyebrow-value);
+
+  /* Spacing and widths */
+  --spacing-section: var(--section-y);
+  --spacing-section-sm: var(--section-y-sm);
+  --spacing-gutter: var(--gutter);
+  --container-page: var(--page-max);
+  --container-prose: var(--prose-max);
+
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--type-body);
+    line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--albert-accent);
+    color: var(--albert-on-accent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Scroll reveal: toggled by useReveal(). Transform and opacity only. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity var(--duration-reveal) var(--ease-out),
+      transform var(--duration-reveal) var(--ease-out);
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Subtle hairline grid backdrop */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--albert-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--albert-grid-line) 1px, transparent 1px);
+    background-size: 48px 48px;
+    background-position: -1px -1px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    transform: none;
+    transition: opacity var(--duration-fast) linear;
+  }
+
+  .reveal.is-visible {
+    transform: none;
+  }
+
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

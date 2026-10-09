@@ -1,6 +1,7 @@
 import "@/styles/hero.css";
 
 import { useEffect, useRef, useState } from "react";
+import type React from "react";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,11 @@ import { GITHUB_URL } from "@/sections/nav";
 
 const STEPS = ["Prevent", "Detect", "Prove", "Learn", "Watch"] as const;
 const CYCLE_MS = 1600;
+
+// Untrusted inputs an agent reads. The headline rotates through them so it does not read as an email-only product.
+const THREATS = ["email", "line of code", "web page", "PDF", "pull request", "tool result"] as const;
+const THREAT_STATIC = "input";
+const THREAT_HOLD_MS = 2400;
 
 const HERO_SIZES = "(min-width: 768px) 70vw, 100vw";
 const AVIF_SRCSET = "/hero/torus-640.avif 640w, /hero/torus-960.avif 960w, /hero/torus-1536.avif 1536w";
@@ -32,6 +38,74 @@ function usePrefersReducedMotion(): boolean {
   }, []);
 
   return reduced;
+}
+
+/**
+ * Rotating word in the headline: "One bad <email | line of code | ...>".
+ * Every word sits in the same grid cell, so the slot is always as wide as the longest word and the headline
+ * never reflows. Each swap rolls the old word out and the new one in, letter by letter (transform, opacity, blur).
+ * Pauses offscreen and when the tab is hidden; with reduced motion it is one static word.
+ */
+function RotatingThreat() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const reduced = usePrefersReducedMotion();
+  const [{ active, leaving }, setSlot] = useState<{ active: number; leaving: number | null }>({
+    active: 0,
+    leaving: null,
+  });
+  const [inView, setInView] = useState(true);
+  const [pageVisible, setPageVisible] = useState(true);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry?.isIntersecting ?? false),
+      { threshold: 0.1 },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [reduced]);
+
+  useEffect(() => {
+    const onVisibility = () => setPageVisible(document.visibilityState === "visible");
+    onVisibility();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  const running = !reduced && inView && pageVisible;
+
+  useEffect(() => {
+    if (!running) return;
+    const id = window.setInterval(
+      () => setSlot((slot) => ({ active: (slot.active + 1) % THREATS.length, leaving: slot.active })),
+      THREAT_HOLD_MS,
+    );
+    return () => window.clearInterval(id);
+  }, [running]);
+
+  if (reduced) {
+    return <span className="text-accent-brand">{THREAT_STATIC}</span>;
+  }
+
+  return (
+    <span ref={ref} className="hero-rotator">
+      {THREATS.map((word, w) => (
+        <span
+          key={word}
+          className="hero-rotator-word"
+          data-state={w === active ? "active" : w === leaving ? "leaving" : "idle"}
+        >
+          {Array.from(word).map((char, i) => (
+            <span key={i} className="hero-rotator-char" style={{ "--i": i } as React.CSSProperties}>
+              {char === " " ? "\u00a0" : char}
+            </span>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /**
@@ -195,7 +269,16 @@ export function Hero() {
             className="anim-fade-up font-display text-display-lg font-bold uppercase text-balance text-foreground"
             style={{ animationDelay: "160ms" }}
           >
-            One bad email can take over your agent.
+            {/* Screen readers get one stable sentence; the animated copy is decorative. */}
+            <span className="sr-only">
+              One bad email, line of code, web page or document can take over your agent.
+            </span>
+            <span aria-hidden="true">
+              <span className="block">
+                One bad <RotatingThreat />
+              </span>
+              <span className="block">can take over your agent.</span>
+            </span>
           </h1>
 
           <p

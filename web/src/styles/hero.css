@@ -59,6 +59,84 @@
   will-change: opacity, transform;
 }
 
+/* Rotating headline word. All words share one grid cell: the slot keeps the width of the longest one. */
+.hero-rotator {
+  display: inline-grid;
+  perspective: 800px;
+}
+
+.hero-rotator-word {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  color: var(--color-accent-brand);
+}
+
+.hero-rotator-word[data-state="active"] {
+  animation: hero-word-glow 900ms ease-out both;
+}
+
+.hero-rotator-char {
+  display: inline-block;
+  opacity: 0;
+  transform-origin: 50% 60%;
+  backface-visibility: hidden;
+}
+
+/* In: each letter rolls up from below, sharpening as it lands. Starts once the old word has cleared. */
+.hero-rotator-word[data-state="active"] .hero-rotator-char {
+  animation: hero-char-in 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(160ms + var(--i) * 34ms);
+}
+
+/* Out: faster than in, so the swap reads as a snap, not a crossfade. */
+.hero-rotator-word[data-state="leaving"] .hero-rotator-char {
+  animation: hero-char-out 300ms cubic-bezier(0.5, 0, 0.9, 0.4) both;
+  animation-delay: calc(var(--i) * 14ms);
+}
+
+@keyframes hero-char-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0.6em, 0) rotateX(-90deg) scale(0.9);
+    filter: blur(8px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  72% {
+    transform: translate3d(0, -0.04em, 0) rotateX(0deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-char-out {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -0.55em, 0) rotateX(80deg) scale(0.92);
+    filter: blur(8px);
+  }
+}
+
+@keyframes hero-word-glow {
+  0%,
+  25% {
+    text-shadow: 0 0 0.5em color-mix(in srgb, var(--color-accent-brand, #ff4f1f) 70%, transparent);
+  }
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+}
+
 @keyframes hero-art-enter {
   from {
     opacity: 0;

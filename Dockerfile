@@ -1,11 +1,11 @@
-FROM node:24-bookworm-slim AS dashboard
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS dashboard
 WORKDIR /build/dashboard
 COPY dashboard/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY dashboard/ ./
 RUN npm run build
 
-FROM node:24-bookworm-slim AS runtime
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates git tini \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/semgrep \

@@ -119,6 +119,18 @@ describe('Albert AI dashboard', () => {
     expect(screen.getByRole('button', { name: /run defense loop/i })).toBeEnabled();
   });
 
+  it('marks unreported evaluation fields unavailable after the run ends', async () => {
+    render(<App />);
+    const source = await startRun();
+    act(() => source.emit('1', 'attack_batch', { version: 'v1', total: 30, succeeded: 22, infra_errors: 0 }));
+    const row = within(screen.getByRole('table')).getByText('v1').closest('tr')!;
+    expect(within(row).getByText('Pending')).toBeInTheDocument();
+    act(() => source.emit('2', 'done'));
+    expect(within(row).queryByText('Pending')).toBeNull();
+    expect(within(row).queryByText('Evaluating')).toBeNull();
+    expect(within(row).getAllByText('Unavailable')).toHaveLength(2);
+  });
+
   it('surfaces a start request failure and enables retry', async () => {
     fetchMock.mockImplementation(async (url: string) => response(url === '/api/metrics' ? metrics : { rows: [] }, url !== '/api/loop/start', url === '/api/loop/start' ? 503 : 200));
     render(<App />);

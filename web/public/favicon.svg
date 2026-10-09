@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <title>Albert AI</title>
-  <rect width="32" height="32" rx="6" fill="#0b0b0b"/>
-  <path d="M9 25 L16 7 L23 25" fill="none" stroke="#FF4F1F" stroke-width="3.2" stroke-linejoin="miter" stroke-linecap="square"/>
-  <rect x="11.5" y="18" width="9" height="2.4" fill="#FF4F1F"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#0b0b0b"/>
+  <rect x="13" y="17" width="7" height="31" fill="#FF4F1F"/>
+  <text x="39" y="48" text-anchor="middle" font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="700" font-size="40" fill="#ffffff">A</text>
 </svg>

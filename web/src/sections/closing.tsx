@@ -1,6 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 
-import { Eyebrow } from "@/components/brand/eyebrow";
+import { Logo } from "@/components/brand/logo";
 import { Rule } from "@/components/brand/rule";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +9,10 @@ import { useReveal } from "@/hooks/use-reveal";
 const GITHUB_URL = "https://github.com/prathamsnehi/cyberdefense-hack-26";
 const loop = ["Prevent", "Detect", "Prove", "Learn", "Watch"];
 const stack = ["Senso", "Semgrep", "OpenAI", "AkashML", "Guild", "ClickHouse"];
+
+/* Bars draw in (scaleX) once the parent .reveal gets .is-visible. Static with reduced motion. */
+const drawBar =
+  "scale-x-0 transition-transform duration-(--duration-reveal) ease-out [.is-visible_&]:scale-x-100 motion-reduce:scale-x-100 motion-reduce:transition-none";
 
 export function Closing() {
   const ref = useReveal();
@@ -27,8 +31,8 @@ export function Closing() {
         ref={ref}
         className="reveal relative mx-auto flex max-w-page flex-col items-center gap-6 px-gutter text-center"
       >
-        <Eyebrow>Albert AI</Eyebrow>
-        <Rule width="md" />
+        <Logo variant="eyebrow" />
+        <Rule width="lg" thickness="heavy" className={`origin-center ${drawBar}`} />
         <h2
           id="closing-title"
           className="max-w-4xl font-display text-display-lg font-bold uppercase text-balance"
@@ -47,7 +51,11 @@ export function Closing() {
           {loop.map((step, i) => (
             <li key={step} className="flex items-center gap-3">
               {i > 0 ? (
-                <span aria-hidden="true" className="h-px w-4 bg-accent-brand" />
+                <span
+                  aria-hidden="true"
+                  className={`h-0.5 w-4 origin-left bg-accent-brand ${drawBar}`}
+                  style={{ transitionDelay: `${200 + i * 60}ms` }}
+                />
               ) : null}
               {step}
             </li>
@@ -72,16 +80,20 @@ export function Closing() {
 
 export function Footer() {
   return (
-    <footer className="border-t border-hairline">
+    <footer className="relative border-t border-hairline">
+      <Rule
+        width="lg"
+        thickness="bar"
+        className="absolute left-0 top-0 -translate-y-px"
+      />
       <div className="mx-auto flex max-w-page flex-col gap-8 px-gutter py-section-sm">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <a
-            href="#top"
-            className="flex items-center gap-3 rounded-sm text-eyebrow font-semibold uppercase tracking-eyebrow text-foreground"
-          >
-            <Rule width="xs" />
-            Albert AI
-          </a>
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-4">
+            <Logo variant="lockup" size="md" href="#top" />
+            <p className="max-w-prose text-small text-pretty text-fg-secondary">
+              Every successful attack makes the next build safer.
+            </p>
+          </div>
           <a
             href={GITHUB_URL}
             target="_blank"
@@ -94,14 +106,17 @@ export function Footer() {
           </a>
         </div>
         <Separator />
-        <div className="flex flex-col gap-3 text-small text-fg-muted md:flex-row md:items-start md:justify-between">
-          <p className="flex flex-wrap gap-x-3 gap-y-1">
-            <span>Cyberdefense Hackathon #SFTechWeek by {"tokens&"}</span>
-            <span aria-hidden="true">|</span>
-            <span>AWS Builder Loft SF</span>
-            <span aria-hidden="true">|</span>
-            <span>Oct 9, 2026</span>
-          </p>
+        <div className="flex flex-col gap-4 text-small text-fg-muted md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
+            <Logo variant="eyebrow" />
+            <p className="flex flex-wrap gap-x-3 gap-y-1">
+              <span>Cyberdefense Hackathon #SFTechWeek by {"tokens&"}</span>
+              <span aria-hidden="true">|</span>
+              <span>AWS Builder Loft SF</span>
+              <span aria-hidden="true">|</span>
+              <span>Oct 9, 2026</span>
+            </p>
+          </div>
           <p>Built with {stack.join(", ")}.</p>
         </div>
       </div>

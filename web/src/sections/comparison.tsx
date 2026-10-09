@@ -18,7 +18,7 @@ const rows: Row[] = [
   { label: "Detect", values: ["partial", "yes", null, "yes"] },
   { label: "Prove", values: ["yes", null, null, "yes"] },
   { label: "Learn", values: ["partial", "partial", null, "yes"] },
-  { label: "Watch", values: [null, "partial", "yes", "yes"] },
+  { label: "Watch", values: ["partial", null, "yes", "yes"] },
   { label: "Attack results feed rules and the brief", values: [null, null, null, "yes"] },
 ];
 

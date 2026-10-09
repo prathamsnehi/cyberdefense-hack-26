@@ -6,24 +6,26 @@ Akash Network hosts Albert AI's Hono API, security-loop orchestrator, per-versio
 
 This hosting role is distinct from AkashML inference. The hosted application uses Neon AI Gateway for model access, ClickHouse Cloud for audit evidence and dashboard analytics, and Semgrep for detection and validation. `TARGET_PROVIDER=akash` is an optional inference configuration; deploying this application to Akash does not require it.
 
-**Deployment verification: Akash backend live; Vercel frontend integration pending.** Console reports one ready replica. Verified public HTTPS health, required team authentication, and real ClickHouse metrics. The final image/origin update and hosted loop/browser checks remain pending.
+**Deployment verification: Akash backend live; Vercel browser checks pending.** The replacement Zencloud lease serves the verified final image with the exact Vercel origin allowed. Verified public HTTPS health, required team authentication, and real ClickHouse metrics. The hosted loop and browser checks remain pending.
 
 ## Deployment evidence
 
 | Evidence | Verified value |
 |---|---|
-| Vercel team dashboard URL | Pending |
-| Akash HTTPS application ingress | `https://cnticpg9nd8694b6pvk4fkm7p0.ingress.pronto-ai.pp.ua` (TLS and `/health` 200 verified) |
-| Akash deployment ID (dseq) | `1791580538730`, active lease |
-| Provider address and hostname | `akash1rja3y2ctj3tzmesvh0zfhzzx95rfjw405hwt8d`; `provider.pronto-ai.pp.ua` |
-| Immutable container image and digest | Pending |
-| Running source revision | Pending |
+| Vercel team dashboard URL | `https://albert-ai-dashboard.vercel.app` (production ready; final browser check pending) |
+| Akash HTTPS application ingress | `https://thiioenac5fg9en2rj224k050o.ingress.zencloud.eu` (TLS and `/health` 200 verified) |
+| Akash deployment ID (dseq) | `1791581402807`, active lease |
+| Provider address and hostname | `akash16yr3wxt97ae045a06kr3ycde9srcgpg8syjxxm`; `provider.zencloud.eu` |
+| Immutable container image and digest | `ghcr.io/prathamsnehi/albert-ai:083c8ba98e00e7b5ad7b2e6efd4b98dc0e77018d`; `sha256:a9b10cc722384d5aa2fa2e73af30ad049c3e68e2a1f444ee139a0132168f33e3` (anonymous registry manifest verified) |
+| Running source revision | Akash: `083c8ba98e00e7b5ad7b2e6efd4b98dc0e77018d`; Vercel: merged `ac073d94` source (same application code) |
 | CPU / RAM / disk / replicas | 2 vCPU / 4 GiB / 10 GiB ephemeral / 1 (requested) |
-| Sponsor credits and accepted bid | Console balance before deployment: $26, including $25 `AKASHCYBER25` credit. Accepted bid: `15.542824 uact/block`; lowest bidder whose ingress passed certificate verification. No card purchase or auto-recharge configured. |
-| Funding runtime limit | 48 hours from lease start; Console reports `2026-10-11T21:17:03.832Z` (October 11, 2:17 PM Pacific) |
+| Sponsor credits and accepted bid | Console balance before deployment: $26, including $25 `AKASHCYBER25` credit. Accepted replacement bid: `21.195183 uact/block` on Zencloud, after the cheaper provider developed TLS failures. No card purchase or auto-recharge configured. |
+| Funding runtime limit | 48 hours from lease start; Console reports `2026-10-11T21:30:40.563Z` (October 11, 2:30 PM Pacific) |
 | HTTPS and team-login check | Valid certificate; `/health` 200 reports `hosting: akash`; root without login 401; authenticated root and `/api/loop/active` 200 |
 | Live ClickHouse metrics and blocked feed | Authenticated `/api/metrics` 200: 868 audit events, 3 recent blocked actions, guard p95 98.018 ms; browser panel check pending |
 | Hosted loop and SSE replay | Pending |
+
+The first provider deployment, `1791580538730` on ProntoAI, passed initial HTTPS checks but later failed TLS handshakes across its ingress. It was explicitly closed; Console confirmed the deployment and lease are both `closed`. The replacement Zencloud provider passed certificate verification with TLS 1.2 and TLS 1.3 using OpenSSL and a modern Node HTTPS client. Only the replacement lease remains active.
 
 ## Build and deploy
 
@@ -51,7 +53,7 @@ Import `prathamsnehi/cyberdefense-hack-26` into Vercel with project name `albert
 
 Configure exactly these three Vercel server environment variables for the team deployment:
 
-- `ALBERT_BACKEND_URL=https://cnticpg9nd8694b6pvk4fkm7p0.ingress.pronto-ai.pp.ua`.
+- `ALBERT_BACKEND_URL=https://thiioenac5fg9en2rj224k050o.ingress.zencloud.eu`.
 - `DASHBOARD_USER`: the same private team username as Akash.
 - `DASHBOARD_PASSWORD`: the same private team password as Akash.
 

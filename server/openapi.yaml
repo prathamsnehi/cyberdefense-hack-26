@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: AgentGuard tools
+  version: 1.0.0
+  description: >-
+    Callbacks the Guild red-team and fixer agents use to explore a sandboxed
+    target agent and submit patches. Self-contained: every reference is internal.
+servers:
+  - url: https://unerasing-scripturally-sherie.ngrok-free.dev
+security:
+  - apiKey: []
+paths:
+  /tools/target-profile:
+    get:
+      operationId: get_target_profile
+      summary: Read-only. Describe a sandboxed target agent and its tools.
+      parameters:
+        - name: agent_id
+          in: query
+          required: true
+          description: Target agent id, e.g. invoice-bot.
+          schema:
+            type: string
+        - name: compromised
+          in: query
+          required: false
+          description: Optional flag. Leave unset unless your instructions say otherwise.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Target profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TargetProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /tools/attack-batch:
+    post:
+      operationId: send_attack_batch
+      summary: Generate up to 10 attack emails of one technique and send them to the SANDBOXED target. Returns how many made it pay an unknown account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttackBatchRequest"
+      responses:
+        "200":
+          description: Batch results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttackBatchResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: No sandbox is running for this run.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /tools/run-context:
+    get:
+      operationId: get_run_context
+      summary: Get the current code, Semgrep findings and still-working attacks for a run.
+      parameters:
+        - name: run_id
+          in: query
+          required: true
+          description: Run id from your task.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Run context. Empty object when the run is unknown.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunContext"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /tools/patch:
+    post:
+      operationId: submit_patch
+      summary: Submit the full fixed file for a run and version. AgentGuard will prove it by re-running every attack.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchRequest"
+      responses:
+        "200":
+          description: Patch accepted for testing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: No patch is expected for this run and version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  responses:
+    Unauthorized:
+      description: Missing or wrong API key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: unauthorized
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    TargetProfile:
+      type: object
+      required: [agent_id, description, tools]
+      properties:
+        agent_id:
+          type: string
+        description:
+          type: string
+        tools:
+          type: array
+          items:
+            type: string
+    AttackBatchRequest:
+      type: object
+      required: [run_id, agent_id, version, technique, count]
+      properties:
+        run_id:
+          type: string
+          description: Run id from your task.
+        agent_id:
+          type: string
+          description: Target agent id, e.g. invoice-bot.
+        version:
+          type: string
+          description: Agent version under test, e.g. v1.
+        technique:
+          type: string
+          description: >-
+            One attack technique, e.g. instruction-override, bank-details-change,
+            authority-impersonation-cfo, fake-system-notice, hidden-text-in-invoice,
+            base64-instruction, multilingual, urgency-overdue, split-instructions,
+            tool-output-spoof.
+        count:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Number of attack emails to generate and send.
+    AttackBatchResult:
+      type: object
+      required: [total, succeeded, worked]
+      properties:
+        total:
+          type: integer
+          description: Attacks sent.
+        succeeded:
+          type: integer
+          description: Attacks that made the target pay an unknown account.
+        worked:
+          type: array
+          description: Subjects of the attack emails that succeeded.
+          items:
+            type: string
+    Finding:
+      type: object
+      properties:
+        id:
+          type: string
+        rule_id:
+          type: string
+        file:
+          type: string
+        line:
+          type: integer
+        end_line:
+          type: integer
+        severity:
+          type: string
+          enum: [ERROR, WARNING, INFO]
+        message:
+          type: string
+        snippet:
+          type: string
+    Email:
+      type: object
+      properties:
+        id:
+          type: string
+        from:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        external:
+          type: boolean
+    RunContext:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        url:
+          type: string
+          description: Sandbox URL of the running target.
+        version:
+          type: string
+        code:
+          type: string
+          description: Full source of the agent file to fix.
+        findings:
+          type: array
+          description: Semgrep findings on the current code.
+          items:
+            $ref: "#/components/schemas/Finding"
+        failedAttacks:
+          type: array
+          description: Attack emails that still make the agent pay an unknown account.
+          items:
+            $ref: "#/components/schemas/Email"
+        lessons:
+          type: string
+          description: Lessons from past incidents; cite them by id.
+    PatchRequest:
+      type: object
+      required: [run_id, version, file_content, rationale]
+      properties:
+        run_id:
+          type: string
+          description: Run id from your task.
+        version:
+          type: string
+          description: Version this patch creates, from your task.
+        file_content:
+          type: string
+          description: The complete fixed file, not a diff.
+        rationale:
+          type: string
+          description: Why this fix stops the attacks.
+        citations:
+          type: array
+          description: Ids of the lessons you used.
+          items:
+            type: string
+    PatchAccepted:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
